@@ -32,7 +32,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy migration files
-COPY typeorm.config.ts ./
+# COPY typeorm.config.ts ./
 
 # Install Cloud SQL Proxy
 ADD https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 /cloud_sql_proxy
