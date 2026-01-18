@@ -50,7 +50,7 @@ class Main {
 
   async start(): Promise<void> {
     try {
-      const port = process.env.PORT ?? 8080;
+      const port = process.env.PORT || 8080;
       await this.app.listen(port);
 
       this.logger.log(`
