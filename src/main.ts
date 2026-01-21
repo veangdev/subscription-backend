@@ -50,13 +50,14 @@ class Main {
 
   async start(): Promise<void> {
     try {
-      const port = process.env.PORT || 8080;
-      await this.app.listen(port);
+      const port = Number(process.env.PORT) || 8080;
+
+      await this.app.listen(port, '0.0.0.0');
 
       this.logger.log(`
-  🚀 Application is running on: http://localhost:${port}
-  📚 API Documentation: http://localhost:${port}/api/docs
-      `);
+🚀 Application is running on port ${port}
+📚 API Documentation: /api/docs
+    `);
     } catch (error) {
       this.logger.error('Failed to start server', error);
       process.exit(1);
