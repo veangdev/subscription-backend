@@ -12,4 +12,5 @@ export const databaseConfig: TypeOrmModuleOptions = {
   database: process.env.DATABASE_NAME,
   autoLoadEntities: true,
   synchronize: false,
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
 };
