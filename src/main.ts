@@ -28,7 +28,7 @@ class Main {
     );
 
     // API prefix
-    this.app.setGlobalPrefix('api');
+    this.app.setGlobalPrefix('api', { exclude: [] });
 
     // Swagger API documentation
     this.setupSwagger();
@@ -54,10 +54,8 @@ class Main {
 
       await this.app.listen(port, '0.0.0.0');
 
-      this.logger.log(`
-🚀 Application is running on port ${port}
-📚 API Documentation: /api/docs
-    `);
+      this.logger.log(`Application is running on: ${port}`);
+      this.logger.log(`API Documentation: /api/docs`);
     } catch (error) {
       this.logger.error('Failed to start server', error);
       process.exit(1);
