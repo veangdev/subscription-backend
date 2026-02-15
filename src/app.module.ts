@@ -1,23 +1,38 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
-// import { databaseConfig } from './config/database.config';
-import dotenv from 'dotenv';
 
-// Import all modules
-
-// import { databaseConfig } from './config/database.config';
+import { databaseConfigFactory } from './config/database.config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
-dotenv.config();
+import { UsersModule } from './users/users.module';
+import { SubscriptionPlansModule } from './subscription-plans/subscription-plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PaymentsModule } from './payments/payments.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { ShipmentsModule } from './shipments/shipments.module';
+import { ReportsModule } from './reports/reports.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
-    TypeOrmModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: databaseConfigFactory,
+    }),
     ScheduleModule.forRoot(),
+    AuthModule,
+    UsersModule,
+    SubscriptionPlansModule,
+    SubscriptionsModule,
+    PaymentsModule,
+    CouponsModule,
+    InventoryModule,
+    ShipmentsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

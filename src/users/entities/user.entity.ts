@@ -6,12 +6,14 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('increment')
-  id: number;
+  @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ length: 100 })
   name: string;

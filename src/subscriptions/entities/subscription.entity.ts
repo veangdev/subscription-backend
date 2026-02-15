@@ -6,6 +6,7 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
 import { Payment } from '../../payments/entities/payment.entity';
 import { Shipment } from '../../shipments/entities/shipment.entity';
@@ -13,14 +14,17 @@ import { SubscriptionPlan } from '../../subscription-plans/entities/subscription
 
 @Entity('subscriptions')
 export class Subscription {
-  @PrimaryGeneratedColumn('increment')
-  id: number;
+  @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column({ type: 'bigint' })
-  user_id: number;
+  @ApiProperty({ type: String, format: 'uuid' })
+  @Column('uuid')
+  user_id: string;
 
-  @Column({ type: 'bigint' })
-  plan_id: number;
+  @ApiProperty({ type: String, format: 'uuid' })
+  @Column('uuid')
+  plan_id: string;
 
   @Column({ type: 'date' })
   start_date: Date;

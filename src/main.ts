@@ -1,67 +1,62 @@
+// src/main.ts
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+
 import { AppModule } from './app.module';
-import { INestApplication } from '@nestjs/common';
 
-class Main {
-  private readonly logger = new Logger(Main.name);
-  private app: INestApplication;
+const API_PREFIX = 'api';
+const DEFAULT_PORT = 8080;
 
-  async run(): Promise<this> {
-    // Create NestJS application
-    this.app = await NestFactory.create(AppModule);
+async function bootstrap(): Promise<void> {
+  const logger = new Logger('Bootstrap');
 
-    // Enable CORS for mobile app
-    this.app.enableCors({
-      origin: '*', // In production, specify your mobile app's origin
-      credentials: true,
-    });
+  const app = await NestFactory.create(AppModule);
 
-    // Global validation pipe
-    this.app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+  app.setGlobalPrefix(API_PREFIX);
 
-    // API prefix
-    this.app.setGlobalPrefix('api', { exclude: [] });
+  configureCors(app);
+  configureValidation(app);
+  configureSwagger(app);
 
-    // Swagger API documentation
-    this.setupSwagger();
+  const port = Number(process.env.PORT) || DEFAULT_PORT;
+  await app.listen(port, '0.0.0.0');
 
-    return this;
-  }
-
-  private setupSwagger(): void {
-    const config = new DocumentBuilder()
-      .setTitle('Subscription Box API')
-      .setDescription('API for Subscription Box Management System')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-
-    const document = SwaggerModule.createDocument(this.app, config);
-    SwaggerModule.setup('api/docs', this.app, document);
-  }
-
-  async start(): Promise<void> {
-    try {
-      const port = Number(process.env.PORT) || 8080;
-
-      await this.app.listen(port, '0.0.0.0');
-
-      this.logger.log(`Application is running on: ${port}`);
-      this.logger.log(`API Documentation: /api/docs`);
-    } catch (error) {
-      this.logger.error('Failed to start server', error);
-      process.exit(1);
-    }
-  }
+  logger.log(`Application is running on port ${port}`);
+  logger.log(`API Documentation available at /${API_PREFIX}/docs`);
 }
 
-const main = new Main();
-void main.run().then(() => main.start());
+function configureCors(app: INestApplication): void {
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || '*',
+    credentials: true,
+  });
+}
+
+function configureValidation(app: INestApplication): void {
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+}
+
+function configureSwagger(app: INestApplication): void {
+  const config = new DocumentBuilder()
+    .setTitle('Subscription Box API')
+    .setDescription('API for Subscription Box Management System')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup(`${API_PREFIX}/docs`, app, document);
+}
+
+bootstrap().catch((error) => {
+  const logger = new Logger('Bootstrap');
+  logger.error('Failed to start application', error);
+  process.exit(1);
+});

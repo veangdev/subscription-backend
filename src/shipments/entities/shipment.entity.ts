@@ -5,15 +5,18 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Entity('shipments')
 export class Shipment {
-  @PrimaryGeneratedColumn('increment')
-  id: number;
+  @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column({ type: 'bigint' })
-  subscription_id: number;
+  @ApiProperty({ type: String, format: 'uuid' })
+  @Column('uuid')
+  subscription_id: string;
 
   @Column({ type: 'date' })
   shipment_date: Date;
