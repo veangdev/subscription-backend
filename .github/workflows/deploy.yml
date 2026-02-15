@@ -38,4 +38,21 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/app:${{ github.sha }}
-          flags: --allow-unauthenticated
+          flags: >-
+            --allow-unauthenticated
+            --add-cloudsql-instances=${{ secrets.GCP_PROJECT_ID }}:us-central1:subscription-db
+            --max-instances=10
+            --min-instances=0
+            --memory=512Mi
+            --cpu=1
+            --timeout=300
+          env_vars: |
+            NODE_ENV=production
+            DATABASE_HOST=/cloudsql/${{ secrets.GCP_PROJECT_ID }}:us-central1:subscription-db
+            DATABASE_PORT=5432
+            DATABASE_USER=nestjs_user
+            DATABASE_NAME=subscription_db
+          secrets: |
+            DATABASE_PASSWORD=database-password:latest
+            JWT_SECRET=jwt-secret:latest
+            STRIPE_SECRET_KEY=stripe-secret-key:latest
