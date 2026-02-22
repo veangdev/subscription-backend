@@ -15,6 +15,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuthModule } from './auth/auth.module';
+import { AddressesModule } from './addresses/addresses.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AuthModule } from './auth/auth.module';
     InventoryModule,
     ShipmentsModule,
     ReportsModule,
+    AddressesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
