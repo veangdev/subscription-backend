@@ -14,5 +14,5 @@ export const databaseConfigFactory = (
   password: config.getOrThrow('DATABASE_PASSWORD'),
   database: config.getOrThrow('DATABASE_NAME'),
   autoLoadEntities: true,
-  synchronize: config.get('NODE_ENV') !== 'production',
+  synchronize: config.get('DB_SYNC', 'false') === 'true',
 });
