@@ -7,6 +7,11 @@ import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
 
+export type StripeCheckoutClientSecrets = {
+  paymentIntentClientSecret: string | null;
+  setupIntentClientSecret: string | null;
+};
+
 @Injectable()
 export class StripeService {
   private stripe: Stripe;
@@ -205,7 +210,7 @@ export class StripeService {
           payment_method_types: ['card'],
           save_default_payment_method: 'on_subscription',
         },
-        expand: ['latest_invoice.payment_intent'],
+        expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
       });
 
       this.logger.log(`Created subscription: ${subscription.id}`);
@@ -245,6 +250,48 @@ export class StripeService {
     }
 
     return paymentIntent;
+  }
+
+  async extractCheckoutClientSecrets(
+    subscription: Stripe.Subscription,
+  ): Promise<StripeCheckoutClientSecrets> {
+    let paymentIntentClientSecret: string | null = null;
+    let setupIntentClientSecret: string | null = null;
+
+    const latestInvoice = subscription.latest_invoice;
+    if (latestInvoice && typeof latestInvoice !== 'string') {
+      const latestInvoiceWithPaymentIntent = latestInvoice as Stripe.Invoice & {
+        payment_intent?: string | Stripe.PaymentIntent | null;
+      };
+      const paymentIntent = latestInvoiceWithPaymentIntent.payment_intent;
+
+      if (paymentIntent) {
+        if (typeof paymentIntent === 'string') {
+          const resolvedPaymentIntent =
+            await this.stripe.paymentIntents.retrieve(paymentIntent);
+          paymentIntentClientSecret =
+            resolvedPaymentIntent.client_secret ?? null;
+        } else {
+          paymentIntentClientSecret = paymentIntent.client_secret ?? null;
+        }
+      }
+    }
+
+    const pendingSetupIntent = subscription.pending_setup_intent;
+    if (pendingSetupIntent) {
+      if (typeof pendingSetupIntent === 'string') {
+        const resolvedSetupIntent =
+          await this.stripe.setupIntents.retrieve(pendingSetupIntent);
+        setupIntentClientSecret = resolvedSetupIntent.client_secret ?? null;
+      } else {
+        setupIntentClientSecret = pendingSetupIntent.client_secret ?? null;
+      }
+    }
+
+    return {
+      paymentIntentClientSecret,
+      setupIntentClientSecret,
+    };
   }
 
   /**

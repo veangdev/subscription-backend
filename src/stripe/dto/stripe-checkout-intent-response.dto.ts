@@ -7,8 +7,19 @@ export class StripeCheckoutIntentResponseDto {
   @ApiProperty({ example: 'ek_test_abc123...' })
   ephemeral_key: string;
 
-  @ApiProperty({ example: 'pi_3RrA..._secret_abc123...' })
-  payment_intent_client_secret: string;
+  @ApiProperty({
+    example: 'pi_3RrA..._secret_abc123...',
+    required: false,
+    nullable: true,
+  })
+  payment_intent_client_secret: string | null;
+
+  @ApiProperty({
+    example: 'seti_1RrA..._secret_abc123...',
+    required: false,
+    nullable: true,
+  })
+  setup_intent_client_secret: string | null;
 
   @ApiProperty({ example: 'sub_1Rr9xPAQFYxxyZZYabc12345' })
   stripe_subscription_id: string;
