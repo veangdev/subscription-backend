@@ -24,6 +24,9 @@ export class StripeCheckoutIntentResponseDto {
   @ApiProperty({ example: true })
   requires_payment_sheet: boolean;
 
+  @ApiProperty({ example: 'incomplete' })
+  stripe_subscription_status: string;
+
   @ApiProperty({ example: 'sub_1Rr9xPAQFYxxyZZYabc12345' })
   stripe_subscription_id: string;
 

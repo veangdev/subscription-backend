@@ -83,13 +83,24 @@ export class StripeSubscriptionsController {
         'Stripe ephemeral key secret is unavailable',
       );
     }
+    const pendingStatuses = new Set([
+      'incomplete',
+      'past_due',
+      'incomplete_expired',
+      'unpaid',
+    ]);
+    const requiresPaymentSheet =
+      !!paymentIntentClientSecret ||
+      !!setupIntentClientSecret ||
+      pendingStatuses.has(stripeSubscription.status);
+
     return {
       customer_id: customer.id,
       ephemeral_key: ephemeralKey.secret,
       payment_intent_client_secret: paymentIntentClientSecret,
       setup_intent_client_secret: setupIntentClientSecret,
-      requires_payment_sheet:
-        !!paymentIntentClientSecret || !!setupIntentClientSecret,
+      requires_payment_sheet: requiresPaymentSheet,
+      stripe_subscription_status: stripeSubscription.status,
       stripe_subscription_id: stripeSubscription.id,
       publishable_key: this.stripeService.getPublishableKey(),
       stripe_price_id: stripePriceId,

@@ -210,7 +210,11 @@ export class StripeService {
           payment_method_types: ['card'],
           save_default_payment_method: 'on_subscription',
         },
-        expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
+        expand: [
+          'latest_invoice.payment_intent',
+          'latest_invoice.confirmation_secret',
+          'pending_setup_intent',
+        ],
       });
 
       this.logger.log(`Created subscription: ${subscription.id}`);
@@ -260,21 +264,8 @@ export class StripeService {
 
     const latestInvoice = subscription.latest_invoice;
     if (latestInvoice && typeof latestInvoice !== 'string') {
-      const latestInvoiceWithPaymentIntent = latestInvoice as Stripe.Invoice & {
-        payment_intent?: string | Stripe.PaymentIntent | null;
-      };
-      const paymentIntent = latestInvoiceWithPaymentIntent.payment_intent;
-
-      if (paymentIntent) {
-        if (typeof paymentIntent === 'string') {
-          const resolvedPaymentIntent =
-            await this.stripe.paymentIntents.retrieve(paymentIntent);
-          paymentIntentClientSecret =
-            resolvedPaymentIntent.client_secret ?? null;
-        } else {
-          paymentIntentClientSecret = paymentIntent.client_secret ?? null;
-        }
-      }
+      paymentIntentClientSecret =
+        await this.extractPaymentIntentClientSecretFromInvoice(latestInvoice);
     }
 
     const pendingSetupIntent = subscription.pending_setup_intent;
@@ -294,6 +285,79 @@ export class StripeService {
     };
   }
 
+  private getLatestInvoiceId(subscription: Stripe.Subscription): string | null {
+    const latestInvoice = subscription.latest_invoice;
+    if (!latestInvoice) return null;
+    if (typeof latestInvoice === 'string') return latestInvoice;
+    return latestInvoice.id || null;
+  }
+
+  private async extractPaymentIntentClientSecretFromInvoice(
+    invoice: Stripe.Invoice,
+  ): Promise<string | null> {
+    const invoiceWithPaymentIntent = invoice as Stripe.Invoice & {
+      payment_intent?: string | Stripe.PaymentIntent | null;
+      confirmation_secret?: {
+        client_secret?: string | null;
+      } | null;
+    };
+
+    const paymentIntent = invoiceWithPaymentIntent.payment_intent;
+    if (paymentIntent) {
+      if (typeof paymentIntent === 'string') {
+        const resolvedPaymentIntent =
+          await this.stripe.paymentIntents.retrieve(paymentIntent);
+        if (resolvedPaymentIntent.client_secret) {
+          return resolvedPaymentIntent.client_secret;
+        }
+      } else if (paymentIntent.client_secret) {
+        return paymentIntent.client_secret;
+      }
+    }
+
+    // Newer Stripe API versions can return invoice.confirmation_secret instead
+    // of exposing payment_intent directly in this flow.
+    if (invoiceWithPaymentIntent.confirmation_secret?.client_secret) {
+      return invoiceWithPaymentIntent.confirmation_secret.client_secret;
+    }
+
+    return null;
+  }
+
+  private async resolveInvoicePaymentSecret(
+    invoiceId: string,
+  ): Promise<string | null> {
+    const retrievedInvoice = await this.stripe.invoices.retrieve(invoiceId, {
+      expand: ['payment_intent', 'confirmation_secret'],
+    });
+    let paymentIntentClientSecret =
+      await this.extractPaymentIntentClientSecretFromInvoice(
+        retrievedInvoice as Stripe.Invoice,
+      );
+    if (paymentIntentClientSecret) {
+      return paymentIntentClientSecret;
+    }
+
+    // If invoice is still draft, force finalization so Stripe can create
+    // the payment object that PaymentSheet needs.
+    const invoiceStatus = (retrievedInvoice as Stripe.Invoice).status;
+    if (invoiceStatus === 'draft') {
+      const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
+        invoiceId,
+        {
+          auto_advance: true,
+          expand: ['payment_intent', 'confirmation_secret'],
+        } as Stripe.InvoiceFinalizeInvoiceParams,
+      );
+      paymentIntentClientSecret =
+        await this.extractPaymentIntentClientSecretFromInvoice(
+          finalizedInvoice as Stripe.Invoice,
+        );
+    }
+
+    return paymentIntentClientSecret;
+  }
+
   async getCheckoutClientSecretsWithRetry(
     subscriptionId: string,
     retries: number = 2,
@@ -302,7 +366,11 @@ export class StripeService {
       const subscription = await this.stripe.subscriptions.retrieve(
         subscriptionId,
         {
-          expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
+          expand: [
+            'latest_invoice.payment_intent',
+            'latest_invoice.confirmation_secret',
+            'pending_setup_intent',
+          ],
         },
       );
 
@@ -312,6 +380,26 @@ export class StripeService {
         secrets.setupIntentClientSecret
       ) {
         return secrets;
+      }
+
+      const invoiceId = this.getLatestInvoiceId(subscription);
+      if (invoiceId) {
+        try {
+          const paymentIntentClientSecret =
+            await this.resolveInvoicePaymentSecret(invoiceId);
+          if (paymentIntentClientSecret) {
+            return {
+              paymentIntentClientSecret,
+              setupIntentClientSecret: secrets.setupIntentClientSecret,
+            };
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Failed to resolve invoice payment secret for ${invoiceId} on attempt ${attempt + 1}/${retries + 1}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
       }
 
       if (attempt < retries) {
