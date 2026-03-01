@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Controller,
+  InternalServerErrorException,
   Post,
   Body,
 } from '@nestjs/common';
@@ -70,6 +71,11 @@ export class StripeSubscriptionsController {
     const ephemeralKey = await this.stripeService.createEphemeralKey(
       customer.id,
     );
+    if (!ephemeralKey.secret) {
+      throw new InternalServerErrorException(
+        'Stripe ephemeral key secret is unavailable',
+      );
+    }
 
     return {
       customer_id: customer.id,

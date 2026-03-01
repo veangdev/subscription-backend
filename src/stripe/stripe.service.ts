@@ -226,7 +226,12 @@ export class StripeService {
       );
     }
 
-    const paymentIntent = latestInvoice.payment_intent;
+    // Stripe SDK types for Invoice can differ by API version; payment_intent is present
+    // on finalized invoices used in subscription payment flow.
+    const latestInvoiceWithPaymentIntent = latestInvoice as Stripe.Invoice & {
+      payment_intent?: string | Stripe.PaymentIntent | null;
+    };
+    const paymentIntent = latestInvoiceWithPaymentIntent.payment_intent;
     if (!paymentIntent || typeof paymentIntent === 'string') {
       throw new InternalServerErrorException(
         'Stripe payment intent is unavailable',
