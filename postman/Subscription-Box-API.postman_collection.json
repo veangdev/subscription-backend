@@ -41,6 +41,18 @@
       "value": "550e8400-e29b-41d4-a716-446655440002"
     },
     {
+      "key": "stripeSubscriptionId",
+      "value": ""
+    },
+    {
+      "key": "stripeCustomerId",
+      "value": ""
+    },
+    {
+      "key": "stripePaymentIntentClientSecret",
+      "value": ""
+    },
+    {
       "key": "paymentId",
       "value": "550e8400-e29b-41d4-a716-446655440003"
     },
@@ -517,6 +529,80 @@
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/subscriptions/{{subscriptionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stripe",
+      "item": [
+        {
+          "name": "Create Checkout Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{subscriptionPlanId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/stripe/subscriptions/checkout-intent"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.stripe_subscription_id) {",
+                  "    pm.collectionVariables.set('stripeSubscriptionId', data.stripe_subscription_id);",
+                  "    pm.environment.set('stripeSubscriptionId', data.stripe_subscription_id);",
+                  "  }",
+                  "  if (data.customer_id) {",
+                  "    pm.collectionVariables.set('stripeCustomerId', data.customer_id);",
+                  "    pm.environment.set('stripeCustomerId', data.customer_id);",
+                  "  }",
+                  "  if (data.payment_intent_client_secret) {",
+                  "    pm.collectionVariables.set('stripePaymentIntentClientSecret', data.payment_intent_client_secret);",
+                  "    pm.environment.set('stripePaymentIntentClientSecret', data.payment_intent_client_secret);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{subscriptionPlanId}}\",\n  \"stripe_subscription_id\": \"{{stripeSubscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/stripe/subscriptions/confirm"
           }
         }
       ]

@@ -1,6 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
 
 @Injectable()
 export class StripeService {
@@ -14,6 +19,18 @@ export class StripeService {
         apiVersion: '2025-12-15.clover',
       },
     );
+  }
+
+  getPublishableKey(): string {
+    const publishableKey = this.configService.get<string>(
+      'STRIPE_PUBLISHABLE_KEY',
+    );
+    if (!publishableKey) {
+      throw new InternalServerErrorException(
+        'STRIPE_PUBLISHABLE_KEY is not configured',
+      );
+    }
+    return publishableKey;
   }
 
   // ============================================
@@ -35,6 +52,23 @@ export class StripeService {
       this.logger.error('Error creating Stripe customer', error);
       throw error;
     }
+  }
+
+  async findOrCreateCustomer(
+    email: string,
+    name: string,
+  ): Promise<Stripe.Customer> {
+    const customers = await this.stripe.customers.list({
+      email,
+      limit: 1,
+    });
+
+    const existing = customers.data[0];
+    if (existing) {
+      return existing;
+    }
+
+    return this.createCustomer(email, name);
   }
 
   /**
@@ -96,6 +130,13 @@ export class StripeService {
       type: 'card',
     });
     return paymentMethods.data;
+  }
+
+  async createEphemeralKey(customerId: string): Promise<Stripe.EphemeralKey> {
+    return this.stripe.ephemeralKeys.create(
+      { customer: customerId },
+      { apiVersion: '2025-12-15.clover' },
+    );
   }
 
   /**
@@ -175,11 +216,55 @@ export class StripeService {
     }
   }
 
+  extractPaymentIntentFromSubscription(
+    subscription: Stripe.Subscription,
+  ): Stripe.PaymentIntent {
+    const latestInvoice = subscription.latest_invoice;
+    if (!latestInvoice || typeof latestInvoice === 'string') {
+      throw new InternalServerErrorException(
+        'Stripe subscription latest invoice is unavailable',
+      );
+    }
+
+    const paymentIntent = latestInvoice.payment_intent;
+    if (!paymentIntent || typeof paymentIntent === 'string') {
+      throw new InternalServerErrorException(
+        'Stripe payment intent is unavailable',
+      );
+    }
+
+    if (!paymentIntent.client_secret) {
+      throw new InternalServerErrorException(
+        'Stripe payment intent client secret is unavailable',
+      );
+    }
+
+    return paymentIntent;
+  }
+
   /**
    * Get subscription
    */
   async getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
     return await this.stripe.subscriptions.retrieve(subscriptionId);
+  }
+
+  resolvePriceIdForPlan(plan: SubscriptionPlan): string {
+    const normalizedPlanName = plan.name
+      .trim()
+      .replace(/\s+/g, '_')
+      .toUpperCase();
+    const cycle = plan.frequency_in_days >= 360 ? 'YEARLY' : 'MONTHLY';
+    const envKey = `STRIPE_PRICE_${normalizedPlanName}_${cycle}`;
+    const priceId = this.configService.get<string>(envKey);
+
+    if (!priceId) {
+      throw new InternalServerErrorException(
+        `${envKey} is not configured for Stripe plan mapping`,
+      );
+    }
+
+    return priceId;
   }
 
   /**

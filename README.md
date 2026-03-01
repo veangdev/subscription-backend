@@ -96,3 +96,23 @@ cd subscription-backend-nestjs
 ```bash
 yarn install
 ```
+
+### 3. Configure Environment
+
+Copy the template and fill your values:
+
+```bash
+cp .env.example .env
+```
+
+Required Stripe variables for subscription checkout:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_STARTER_MONTHLY`
+- `STRIPE_PRICE_PRO_MONTHLY`
+- `STRIPE_PRICE_BUSINESS_MONTHLY`
+- `STRIPE_PRICE_STARTER_YEARLY`
+- `STRIPE_PRICE_PRO_YEARLY`
+- `STRIPE_PRICE_BUSINESS_YEARLY`

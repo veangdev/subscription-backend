@@ -16,6 +16,7 @@ import { ShipmentsModule } from './shipments/shipments.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuthModule } from './auth/auth.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AddressesModule } from './addresses/addresses.module';
     ShipmentsModule,
     ReportsModule,
     AddressesModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
