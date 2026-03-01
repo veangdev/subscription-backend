@@ -21,6 +21,9 @@ export class StripeCheckoutIntentResponseDto {
   })
   setup_intent_client_secret: string | null;
 
+  @ApiProperty({ example: true })
+  requires_payment_sheet: boolean;
+
   @ApiProperty({ example: 'sub_1Rr9xPAQFYxxyZZYabc12345' })
   stripe_subscription_id: string;
 

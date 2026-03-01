@@ -64,10 +64,17 @@ export class StripeSubscriptionsController {
       customer.id,
       stripePriceId,
     );
-    const { paymentIntentClientSecret, setupIntentClientSecret } =
+    let { paymentIntentClientSecret, setupIntentClientSecret } =
       await this.stripeService.extractCheckoutClientSecrets(
         stripeSubscription,
       );
+    if (!paymentIntentClientSecret && !setupIntentClientSecret) {
+      const retrySecrets = await this.stripeService.getCheckoutClientSecretsWithRetry(
+        stripeSubscription.id,
+      );
+      paymentIntentClientSecret = retrySecrets.paymentIntentClientSecret;
+      setupIntentClientSecret = retrySecrets.setupIntentClientSecret;
+    }
     const ephemeralKey = await this.stripeService.createEphemeralKey(
       customer.id,
     );
@@ -76,17 +83,13 @@ export class StripeSubscriptionsController {
         'Stripe ephemeral key secret is unavailable',
       );
     }
-    if (!paymentIntentClientSecret && !setupIntentClientSecret) {
-      throw new InternalServerErrorException(
-        'Stripe checkout client secret is unavailable',
-      );
-    }
-
     return {
       customer_id: customer.id,
       ephemeral_key: ephemeralKey.secret,
       payment_intent_client_secret: paymentIntentClientSecret,
       setup_intent_client_secret: setupIntentClientSecret,
+      requires_payment_sheet:
+        !!paymentIntentClientSecret || !!setupIntentClientSecret,
       stripe_subscription_id: stripeSubscription.id,
       publishable_key: this.stripeService.getPublishableKey(),
       stripe_price_id: stripePriceId,

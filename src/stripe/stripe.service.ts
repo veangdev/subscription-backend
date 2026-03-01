@@ -294,6 +294,37 @@ export class StripeService {
     };
   }
 
+  async getCheckoutClientSecretsWithRetry(
+    subscriptionId: string,
+    retries: number = 2,
+  ): Promise<StripeCheckoutClientSecrets> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const subscription = await this.stripe.subscriptions.retrieve(
+        subscriptionId,
+        {
+          expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
+        },
+      );
+
+      const secrets = await this.extractCheckoutClientSecrets(subscription);
+      if (
+        secrets.paymentIntentClientSecret ||
+        secrets.setupIntentClientSecret
+      ) {
+        return secrets;
+      }
+
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return {
+      paymentIntentClientSecret: null,
+      setupIntentClientSecret: null,
+    };
+  }
+
   /**
    * Get subscription
    */
