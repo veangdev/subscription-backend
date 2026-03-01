@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { SubscriptionPlansService } from './subscription-plans.service';
 import { CreateSubscriptionPlanDto } from './dto/create-subscription-plan.dto';
@@ -21,8 +21,13 @@ export class SubscriptionPlansController {
   @Get()
   @ApiOperation({ summary: 'Get all subscription plans' })
   @ApiOkResponse({ description: 'List of all plans', type: [SubscriptionPlan] })
-  findAll(): Promise<SubscriptionPlan[]> {
-    return this.plansService.findAll();
+  findAll(
+    @Query('billingCycle') billingCycle?: 'monthly' | 'yearly',
+  ): Promise<SubscriptionPlan[]> {
+    if (billingCycle && billingCycle !== 'monthly' && billingCycle !== 'yearly') {
+      throw new BadRequestException('billingCycle must be monthly or yearly');
+    }
+    return this.plansService.findAll(billingCycle);
   }
 
   @Get(':id')
@@ -46,5 +51,12 @@ export class SubscriptionPlansController {
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.plansService.remove(id);
+  }
+
+  @Post('seed-defaults')
+  @ApiOperation({ summary: 'Seed default monthly/yearly plans' })
+  @ApiOkResponse({ description: 'Seeded subscription plans', type: [SubscriptionPlan] })
+  seedDefaults(): Promise<SubscriptionPlan[]> {
+    return this.plansService.seedDefaultPlans();
   }
 }

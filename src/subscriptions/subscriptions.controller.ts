@@ -4,6 +4,8 @@ import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { Subscription } from './entities/subscription.entity';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { SubscribeDto } from './dto/subscribe.dto';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
@@ -23,6 +25,23 @@ export class SubscriptionsController {
   @ApiOkResponse({ description: 'List of all subscriptions', type: [Subscription] })
   findAll(): Promise<Subscription[]> {
     return this.subscriptionsService.findAll();
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user active subscription' })
+  @ApiOkResponse({ description: 'Current active subscription (or null)' })
+  findMySubscription(@CurrentUser() user: { id: string; email: string }): Promise<Subscription | null> {
+    return this.subscriptionsService.findCurrentByUserId(user.id);
+  }
+
+  @Post('subscribe')
+  @ApiOperation({ summary: 'Create a subscription for current user' })
+  @ApiCreatedResponse({ description: 'Subscription created successfully', type: Subscription })
+  subscribe(
+    @CurrentUser() user: { id: string; email: string },
+    @Body() dto: SubscribeDto,
+  ): Promise<Subscription> {
+    return this.subscriptionsService.subscribeForCurrentUser(user.id, dto);
   }
 
   @Get(':id')
