@@ -56,4 +56,4 @@ jobs:
           secrets: |
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest
-            STRIPE_SECRET_KEY=stripe-secret-key:latest
+            STRIPE_SECRET_KEY=stripe-secret-key1:latest
