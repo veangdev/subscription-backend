@@ -27,6 +27,7 @@ export class AppService {
       environment: process.env.NODE_ENV || 'development',
       uptime: this.formatUptime(uptimeMs),
       timestamp: now.toISOString(),
+      database: 'NOT_CONNECTED - Test at /api/db-test',
     };
   }
 
