@@ -103,9 +103,9 @@ jobs:
             DATABASE_HOST=/cloudsql/${{ secrets.GCP_PROJECT_ID }}:us-central1:subscription-db
             DATABASE_USER=nestjs_user
             DATABASE_NAME=subscription_db
-            DB_RETRY_ATTEMPTS=1
-            DB_RETRY_DELAY_MS=1000
-            DB_CONNECTION_TIMEOUT_MS=5000
+            DB_RETRY_ATTEMPTS=0
+            DB_RETRY_DELAY_MS=500
+            DB_CONNECTION_TIMEOUT_MS=2000
           secrets: |
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest

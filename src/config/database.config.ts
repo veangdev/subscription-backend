@@ -25,7 +25,7 @@ export const databaseConfigFactory = (
   const host = config.getOrThrow('DATABASE_HOST');
   const isUnixSocket = host.startsWith('/');
   
-  // For Cloud SQL Unix sockets, TypeORM/pg needs special handling
+  // For Cloud Run: Make connection fast-fail to prevent startup timeout
   const connectionConfig: any = {
     type: 'postgres',
     username: config.getOrThrow('DATABASE_USER'),
@@ -35,14 +35,21 @@ export const databaseConfigFactory = (
     migrations,
     migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
     synchronize: config.get('DB_SYNC', 'false') === 'true',
-    retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 20)),
-    retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 5000)),
+    retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 0)),
+    retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 500)),
     verboseRetryLog: true,
     logging: config.get('NODE_ENV') !== 'production' ? ['error', 'warn'] : ['error'],
+    // Critical: Make initial connection optional for Cloud Run startup
+    connectTimeoutMS: Number(config.get('DB_CONNECTION_TIMEOUT_MS', 2000)),
     extra: {
       connectionTimeoutMillis: Number(
-        config.get('DB_CONNECTION_TIMEOUT_MS', 10000),
+        config.get('DB_CONNECTION_TIMEOUT_MS', 2000),
       ),
+      // Keep connections short-lived
+      max: 10,
+      idleTimeoutMillis: 30000,
+      // Fast fail for Cloud Run
+      statement_timeout: 10000,
     },
   };
 

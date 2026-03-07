@@ -20,7 +20,9 @@ async function bootstrap(): Promise<void> {
   logger.log(`DB_CONNECTION_TIMEOUT_MS: ${process.env.DB_CONNECTION_TIMEOUT_MS}`);
   
   logger.log('Creating Nest application...');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    abortOnError: false, // Don't abort if database fails to connect initially
+  });
   logger.log('Nest application created successfully');
 
   app.setGlobalPrefix(API_PREFIX);
