@@ -18,6 +18,9 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
+  @Column({ length: 50, unique: true, nullable: true })
+  username: string; // For admin users only
+
   @Column({ length: 100, unique: true })
   email: string;
 

@@ -15,6 +15,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuthModule } from './auth/auth.module';
+import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { StripeModule } from './stripe/stripe.module';
 
@@ -27,6 +28,7 @@ import { StripeModule } from './stripe/stripe.module';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
+    AdminAuthModule,
     UsersModule,
     SubscriptionPlansModule,
     SubscriptionsModule,
