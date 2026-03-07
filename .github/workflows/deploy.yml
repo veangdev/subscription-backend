@@ -97,6 +97,13 @@ jobs:
             --timeout=600
             --cpu-boost
             --no-cpu-throttling
+            --port=8080
+            --startup-probe-type=http
+            --startup-probe-path=/health
+            --startup-probe-initial-delay-seconds=0
+            --startup-probe-timeout-seconds=10
+            --startup-probe-period-seconds=10
+            --startup-probe-failure-threshold=30
           env_vars: |
             NODE_ENV=production
             DB_SYNC=false

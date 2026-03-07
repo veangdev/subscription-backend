@@ -1,4 +1,4 @@
-// src/main.ts
+// Alternative main.ts for Cloud Run - Starts HTTP server BEFORE database connection
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
@@ -19,28 +19,36 @@ async function bootstrap(): Promise<void> {
   logger.log(`DB_RETRY_ATTEMPTS: ${process.env.DB_RETRY_ATTEMPTS}`);
   logger.log(`DB_CONNECTION_TIMEOUT_MS: ${process.env.DB_CONNECTION_TIMEOUT_MS}`);
   
-  logger.log('Creating Nest application (non-blocking)...');
+  logger.log('Creating Nest application...');
+  
+  // Create app with abortOnError: false to prevent database connection failures from killing the app
   const app = await NestFactory.create(AppModule, {
-    abortOnError: false, // CRITICAL: Don't abort if database fails
+    abortOnError: false,
     logger: ['error', 'warn', 'log'],
-    bufferLogs: false,
   });
-  logger.log('✓ Nest application created - HTTP server will start immediately');
+  
+  logger.log('Nest application created successfully');
 
   app.setGlobalPrefix(API_PREFIX);
 
   configureCors(app);
   configureValidation(app);
   configureSwagger(app);
-  logger.log('✓ Application configuration complete');
+  logger.log('Application configuration complete');
 
   const port = Number(process.env.PORT) || DEFAULT_PORT;
-  logger.log(`🚀 Starting HTTP server on 0.0.0.0:${port} NOW...`);
+  
+  // CRITICAL FOR CLOUD RUN: Start listening on port IMMEDIATELY
+  // This allows Cloud Run to see the app is "alive" even if DB isn't connected yet
+  logger.log(`Binding HTTP server to 0.0.0.0:${port} (IMMEDIATE START FOR CLOUD RUN)`);
   await app.listen(port, '0.0.0.0');
-
-  logger.log(`✅ HTTP SERVER LISTENING ON PORT ${port} - CLOUD RUN SHOULD DETECT THIS`);
-  logger.log(`✅ Health endpoint: http://0.0.0.0:${port}/health`);
-  logger.log(`✅ API Documentation available at /${API_PREFIX}/docs`);
+ 
+  logger.log(`✓ Application is running on port ${port}`);
+  logger.log(`✓ Health endpoint: http://localhost:${port}/health`);
+  logger.log(`✓ API Documentation available at /${API_PREFIX}/docs`);
+  
+  // Database connection happens async via TypeORM retries - app will keep running
+  logger.log('Database connection will establish in background (if configured with retries)');
 }
 
 function configureCors(app: INestApplication): void {
@@ -83,5 +91,6 @@ function configureSwagger(app: INestApplication): void {
 bootstrap().catch((error) => {
   const logger = new Logger('Bootstrap');
   logger.error('Failed to start application', error);
+  logger.error(error.stack);
   process.exit(1);
 });
