@@ -25,10 +25,9 @@ export const databaseConfigFactory = (
   const host = config.getOrThrow('DATABASE_HOST');
   const isUnixSocket = host.startsWith('/');
   
-  return {
+  // For Cloud SQL Unix sockets, TypeORM/pg needs special handling
+  const connectionConfig: any = {
     type: 'postgres',
-    host,
-    port: Number(config.get('DATABASE_PORT', 5432)),
     username: config.getOrThrow('DATABASE_USER'),
     password: config.getOrThrow('DATABASE_PASSWORD'),
     database: config.getOrThrow('DATABASE_NAME'),
@@ -44,12 +43,19 @@ export const databaseConfigFactory = (
       connectionTimeoutMillis: Number(
         config.get('DB_CONNECTION_TIMEOUT_MS', 10000),
       ),
-      // For Cloud SQL Unix sockets, ensure proper configuration
-      ...(isUnixSocket && {
-        host,
-      }),
     },
   };
+
+  if (isUnixSocket) {
+    // For Unix socket connections (Cloud SQL), only set host (no port)
+    connectionConfig.host = host;
+  } else {
+    // For TCP connections
+    connectionConfig.host = host;
+    connectionConfig.port = Number(config.get('DATABASE_PORT', 5432));
+  }
+  
+  return connectionConfig;
 };
 
 // Standalone DataSource for migrations and seeders
