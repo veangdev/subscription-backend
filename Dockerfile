@@ -33,5 +33,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=120s --retries=3 \
 
 EXPOSE 8080
 
-# Simple direct execution
-CMD ["node", "--max-old-space-size=1792", "dist/main.js"]
+# Bind the HTTP port immediately, then bootstrap Nest in the background.
+CMD ["node", "--max-old-space-size=1792", "dist/server.js"]
