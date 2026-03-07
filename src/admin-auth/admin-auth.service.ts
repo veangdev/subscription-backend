@@ -52,50 +52,90 @@ export class AdminAuthService {
   }
 
   async seedDefaultAdmin() {
-    // Check if admin already exists
-    const existingAdmin = await this.userRepository.findOne({
-      where: { username: 'admin' },
-    });
+    try {
+      // Check if admin already exists by username
+      let existingAdmin = await this.userRepository.findOne({
+        where: { username: 'admin' },
+      });
 
-    if (existingAdmin) {
+      if (existingAdmin) {
+        return {
+          message: 'Admin user already exists',
+          user: {
+            id: existingAdmin.id,
+            name: existingAdmin.name,
+            username: existingAdmin.username,
+            email: existingAdmin.email,
+            role: existingAdmin.role,
+          },
+        };
+      }
+
+      // Check if user exists by email but without username
+      const existingByEmail = await this.userRepository.findOne({
+        where: { email: 'admin@boxadmin.com' },
+      });
+
+      if (existingByEmail) {
+        // Update existing user to be admin with username
+        const hashedPassword = await bcrypt.hash('Admin@123', 10);
+        existingByEmail.username = 'admin';
+        existingByEmail.role = 'Admin';
+        existingByEmail.password = hashedPassword;
+        existingByEmail.name = 'System Administrator';
+
+        const updated = await this.userRepository.save(existingByEmail);
+
+        return {
+          message: 'Existing user upgraded to admin successfully',
+          credentials: {
+            username: 'admin',
+            password: 'Admin@123',
+          },
+          user: {
+            id: updated.id,
+            name: updated.name,
+            username: updated.username,
+            email: updated.email,
+            role: updated.role,
+          },
+        };
+      }
+
+      // Create new admin user
+      const hashedPassword = await bcrypt.hash('Admin@123', 10);
+
+      const adminUser = this.userRepository.create({
+        name: 'System Administrator',
+        username: 'admin',
+        email: 'admin@boxadmin.com',
+        password: hashedPassword,
+        role: 'Admin',
+      });
+
+      const saved = await this.userRepository.save(adminUser);
+
       return {
-        message: 'Admin user already exists',
+        message: 'Admin user created successfully',
+        credentials: {
+          username: 'admin',
+          password: 'Admin@123',
+        },
         user: {
-          id: existingAdmin.id,
-          name: existingAdmin.name,
-          username: existingAdmin.username,
-          email: existingAdmin.email,
-          role: existingAdmin.role,
+          id: saved.id,
+          name: saved.name,
+          username: saved.username,
+          email: saved.email,
+          role: saved.role,
         },
       };
+    } catch (error) {
+      // Return detailed error for debugging
+      return {
+        message: 'Error seeding admin user',
+        error: error.message,
+        detail: 'This might be due to missing database column. Please ensure the latest deployment has completed.',
+      };
     }
-
-    // Create default admin user
-    const hashedPassword = await bcrypt.hash('Admin@123', 10);
-
-    const adminUser = this.userRepository.create({
-      name: 'System Administrator',
-      username: 'admin',
-      email: 'admin@boxadmin.com',
-      password: hashedPassword,
-      role: 'Admin',
-    });
-
-    const saved = await this.userRepository.save(adminUser);
-
-    return {
-      message: 'Admin user created successfully',
-      credentials: {
-        username: 'admin',
-        password: 'Admin@123',
-      },
-      user: {
-        id: saved.id,
-        name: saved.name,
-        username: saved.username,
-        email: saved.email,
-        role: saved.role,
-      },
-    };
   }
 }
