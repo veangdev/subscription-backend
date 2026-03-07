@@ -34,4 +34,4 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=120s --retries=3 \
 EXPOSE 8080
 
 # Simple direct execution
-CMD ["node", "--max-old-space-size=1792", "dist/standalone-server.js"]
+CMD ["node", "--max-old-space-size=1792", "dist/main.js"]
