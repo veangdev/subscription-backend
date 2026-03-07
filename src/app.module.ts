@@ -23,34 +23,10 @@ import { AccessControlModule } from './access-control/access-control.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // TypeORM disabled temporarily - blocking HTTP server startup
-    // Will re-enable with proper lazy initialization
-    // TypeOrmModule.forRootAsync({
-    //   inject: [ConfigService],
-    //   useFactory: async (config: ConfigService) => ({
-    //     ...databaseConfigFactory(config),
-    //     autoLoadEntities: true,
-    //     synchronize: false,
-    //     migrationsRun: false,
-    //     dropSchema: false,
-    //     logging: false,
-    //   }),
-    // }),
     ScheduleModule.forRoot(),
-    AuthModule,
-    AdminAuthModule,
-    AccessControlModule,
-    // Database-dependent modules disabled until TypeORM is properly lazy-loaded
-    // UsersModule,
-    // SubscriptionPlansModule,
-    // SubscriptionsModule,
-    // PaymentsModule,
-    // CouponsModule,
-    // InventoryModule,
-    // ShipmentsModule,
-    // ReportsModule,
-    // AddressesModule,
-    // StripeModule,
+    // All modules disabled to ensure fast startup
+    // TypeOrmModule disabled - blocking HTTP server startup
+    // AuthModule, AdminAuthModule, AccessControlModule disabled - require database
   ],
   controllers: [AppController],
   providers: [AppService],
