@@ -97,7 +97,6 @@ jobs:
             --timeout=600
             --cpu-boost
             --no-cpu-throttling
-            --startup-cpu-boost
           env_vars: |
             NODE_ENV=production
             DB_SYNC=false
