@@ -42,6 +42,33 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # Enable required APIs and grant permissions
+      - name: Setup Cloud Services
+        continue-on-error: true
+        run: |
+          echo "Enabling required APIs..."
+          gcloud services enable \
+            sqladmin.googleapis.com \
+            sql-component.googleapis.com \
+            secretmanager.googleapis.com \
+            run.googleapis.com \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --quiet || true
+          
+          echo "Granting Cloud SQL Client role..."
+          gcloud projects add-iam-policy-binding ${{ secrets.GCP_PROJECT_ID }} \
+            --member="serviceAccount:${{ steps.runtime_sa.outputs.email }}" \
+            --role="roles/cloudsql.client" \
+            --condition=None \
+            --quiet || true
+          
+          echo "Granting Secret Manager Accessor role..."
+          gcloud projects add-iam-policy-binding ${{ secrets.GCP_PROJECT_ID }} \
+            --member="serviceAccount:${{ steps.runtime_sa.outputs.email }}" \
+            --role="roles/secretmanager.secretAccessor" \
+            --condition=None \
+            --quiet || true
+
       # Let Docker push to Artifact Registry
       - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
@@ -54,6 +81,7 @@ jobs:
 
       # Deploy to existing Cloud Run service
       - uses: google-github-actions/deploy-cloudrun@v2
+        id: deploy
         with:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
@@ -82,3 +110,34 @@ jobs:
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest
             STRIPE_SECRET_KEY=stripe-secret-key1:latest
+
+      # Show deployment details
+      - name: Show deployment info
+        run: |
+          echo "=========================================="
+          echo "Deployment Successful!"
+          echo "=========================================="
+          echo "Service URL: ${{ steps.deploy.outputs.url }}"
+          echo "Service: subscription-backend"
+          echo "Region: us-central1"
+          echo ""
+          echo "Test the API:"
+          echo "  curl ${{ steps.deploy.outputs.url }}/health"
+          echo ""
+          echo "View logs:"
+          echo "  gcloud run services logs tail subscription-backend --region=us-central1 --project=${{ secrets.GCP_PROJECT_ID }}"
+          echo "=========================================="
+
+      # Verify deployment
+      - name: Verify deployment
+        run: |
+          sleep 10
+          curl -f -s "${{ steps.deploy.outputs.url }}/health" || {
+            echo "⚠️  Health check failed - viewing recent logs..."
+            gcloud run services logs read subscription-backend \
+              --region=us-central1 \
+              --project=${{ secrets.GCP_PROJECT_ID }} \
+              --limit=50
+            exit 1
+          }
+          echo "✓ Health check passed!"
