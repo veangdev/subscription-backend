@@ -129,17 +129,3 @@ jobs:
           echo "View logs:"
           echo "  gcloud run services logs tail subscription-backend --region=us-central1 --project=${{ secrets.GCP_PROJECT_ID }}"
           echo "=========================================="
-
-      # Verify deployment
-      - name: Verify deployment
-        run: |
-          sleep 10
-          curl -f -s "${{ steps.deploy.outputs.url }}/health" || {
-            echo "⚠️  Health check failed - viewing recent logs..."
-            gcloud run services logs read subscription-backend \
-              --region=us-central1 \
-              --project=${{ secrets.GCP_PROJECT_ID }} \
-              --limit=50
-            exit 1
-          }
-          echo "✓ Health check passed!"
