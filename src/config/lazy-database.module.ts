@@ -15,21 +15,23 @@ export class LazyDatabaseModule implements OnModuleInit {
       imports: [
         TypeOrmModule.forRootAsync({
           inject: [ConfigService],
-          useFactory: async (config: ConfigService) => {
+          useFactory: (config: ConfigService) => {
+            // CRITICAL: Return config immediately without awaiting anything
             const dbConfig = databaseConfigFactory(config);
+            console.log('[LazyDatabase] Configuring with lazy connection pool...');
             return {
               ...dbConfig,
               autoLoadEntities: true,
               synchronize: false,
               migrationsRun: false,
-              logging: false,
-              // CRITICAL: Make connection pool lazy
+              logging: ['error'],
+              // CRITICAL: Connection happens on first query, not during init
               extra: {
                 ...dbConfig.extra,
-                // Don't create connections on startup
-                connectionTimeoutMillis: 500,
-                // Allow zero connections initially
-                min: 0,
+                connectionTimeoutMillis: 1000,
+                min: 0, // No connections created on startup
+                max: 10,
+                idleTimeoutMillis: 30000,
               },
             };
           },
@@ -40,8 +42,8 @@ export class LazyDatabaseModule implements OnModuleInit {
   }
   
   async onModuleInit() {
-    // Database connection happens here, AFTER HTTP server is listening
-    console.log('[LazyDatabaseModule] Module initialized - database pool ready for connections');
+    // Database connection pool created but no connections established yet
+    console.log('[LazyDatabaseModule] Module initialized - database will connect on first query');
     LazyDatabaseModule.dbReady = true;
   }
   
