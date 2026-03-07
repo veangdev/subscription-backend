@@ -75,6 +75,9 @@ jobs:
             DATABASE_PORT=5432
             DATABASE_USER=nestjs_user
             DATABASE_NAME=subscription_db
+            DB_RETRY_ATTEMPTS=5
+            DB_RETRY_DELAY_MS=3000
+            DB_CONNECTION_TIMEOUT_MS=15000
           secrets: |
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest

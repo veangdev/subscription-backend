@@ -21,26 +21,36 @@ const migrations = [AddRbacAndUserStatus1741377600000];
 
 export const databaseConfigFactory = (
   config: ConfigService,
-): TypeOrmModuleOptions => ({
-  type: 'postgres',
-  host: config.getOrThrow('DATABASE_HOST'),
-  port: Number(config.get('DATABASE_PORT', 5432)),
-  username: config.getOrThrow('DATABASE_USER'),
-  password: config.getOrThrow('DATABASE_PASSWORD'),
-  database: config.getOrThrow('DATABASE_NAME'),
-  autoLoadEntities: true,
-  migrations,
-  migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
-  synchronize: config.get('DB_SYNC', 'false') === 'true',
-  retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 20)),
-  retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 5000)),
-  verboseRetryLog: true,
-  extra: {
-    connectionTimeoutMillis: Number(
-      config.get('DB_CONNECTION_TIMEOUT_MS', 10000),
-    ),
-  },
-});
+): TypeOrmModuleOptions => {
+  const host = config.getOrThrow('DATABASE_HOST');
+  const isUnixSocket = host.startsWith('/');
+  
+  return {
+    type: 'postgres',
+    host,
+    port: Number(config.get('DATABASE_PORT', 5432)),
+    username: config.getOrThrow('DATABASE_USER'),
+    password: config.getOrThrow('DATABASE_PASSWORD'),
+    database: config.getOrThrow('DATABASE_NAME'),
+    autoLoadEntities: true,
+    migrations,
+    migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
+    synchronize: config.get('DB_SYNC', 'false') === 'true',
+    retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 20)),
+    retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 5000)),
+    verboseRetryLog: true,
+    logging: config.get('NODE_ENV') !== 'production' ? ['error', 'warn'] : ['error'],
+    extra: {
+      connectionTimeoutMillis: Number(
+        config.get('DB_CONNECTION_TIMEOUT_MS', 10000),
+      ),
+      // For Cloud SQL Unix sockets, ensure proper configuration
+      ...(isUnixSocket && {
+        host,
+      }),
+    },
+  };
+};
 
 // Standalone DataSource for migrations and seeders
 export const AppDataSource = new DataSource({

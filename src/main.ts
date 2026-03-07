@@ -12,6 +12,10 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   logger.log(`Bootstrapping application in ${process.env.NODE_ENV || 'development'} mode`);
+  logger.log(`Database host: ${process.env.DATABASE_HOST}`);
+  logger.log(`Database name: ${process.env.DATABASE_NAME}`);
+  logger.log(`Database user: ${process.env.DATABASE_USER}`);
+  
   const app = await NestFactory.create(AppModule);
   logger.log('Nest application created');
 
