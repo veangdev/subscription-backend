@@ -26,7 +26,7 @@ export const databaseConfigFactory = (
 ): TypeOrmModuleOptions => ({
   type: 'postgres',
   host: config.getOrThrow('DATABASE_HOST'),
-  port: config.get<number>('DATABASE_PORT', 5432),
+  port: Number(config.get('DATABASE_PORT', 5432)),
   username: config.getOrThrow('DATABASE_USER'),
   password: config.getOrThrow('DATABASE_PASSWORD'),
   database: config.getOrThrow('DATABASE_NAME'),
@@ -34,6 +34,8 @@ export const databaseConfigFactory = (
   migrations,
   migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
   synchronize: config.get('DB_SYNC', 'false') === 'true',
+  retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 20)),
+  retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 5000)),
 });
 
 // Standalone DataSource for migrations and seeders

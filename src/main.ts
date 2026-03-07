@@ -44,6 +44,14 @@ function configureValidation(app: INestApplication): void {
 }
 
 function configureSwagger(app: INestApplication): void {
+  const swaggerEnabled =
+    process.env.SWAGGER_ENABLED === 'true' ||
+    process.env.NODE_ENV !== 'production';
+
+  if (!swaggerEnabled) {
+    return;
+  }
+
   const config = new DocumentBuilder()
     .setTitle('Subscription Box API')
     .setDescription('API for Subscription Box Management System')
