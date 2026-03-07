@@ -18,8 +18,17 @@ export class StripeService {
   private readonly logger = new Logger(StripeService.name);
 
   constructor(private configService: ConfigService) {
+    const secretKey =
+      this.configService.get<string>('STRIPE_SECRET_KEY') || 'sk_test_placeholder';
+
+    if (!this.configService.get<string>('STRIPE_SECRET_KEY')) {
+      this.logger.warn(
+        'STRIPE_SECRET_KEY is not configured. Stripe endpoints will fail until the secret is provided.',
+      );
+    }
+
     this.stripe = new Stripe(
-      this.configService.get<string>('STRIPE_SECRET_KEY') || '',
+      secretKey,
       {
         apiVersion: '2025-12-15.clover',
       },

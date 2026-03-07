@@ -12,11 +12,14 @@ import { Address } from '../addresses/entities/address.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { Coupon } from '../coupons/entities/coupon.entity';
+import { AddRbacAndUserStatus1741377600000 } from '../database/migrations/1741377600000-add-rbac-and-user-status';
 import * as path from 'path';
 
 // Load environment variables
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+const migrations = [AddRbacAndUserStatus1741377600000];
 
 export const databaseConfigFactory = (
   config: ConfigService,
@@ -28,6 +31,8 @@ export const databaseConfigFactory = (
   password: config.getOrThrow('DATABASE_PASSWORD'),
   database: config.getOrThrow('DATABASE_NAME'),
   autoLoadEntities: true,
+  migrations,
+  migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
   synchronize: config.get('DB_SYNC', 'false') === 'true',
 });
 
@@ -50,6 +55,7 @@ export const AppDataSource = new DataSource({
     InventoryItem,
     Coupon,
   ],
+  migrations,
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
 });

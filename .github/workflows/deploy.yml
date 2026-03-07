@@ -48,7 +48,8 @@ jobs:
             --timeout=300
           env_vars: |
             NODE_ENV=production
-            DB_SYNC=true
+            DB_SYNC=false
+            DB_MIGRATIONS=true
             DATABASE_HOST=/cloudsql/${{ secrets.GCP_PROJECT_ID }}:us-central1:subscription-db
             DATABASE_PORT=5432
             DATABASE_USER=nestjs_user
