@@ -12,6 +12,8 @@ import { Address } from '../addresses/entities/address.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { Coupon } from '../coupons/entities/coupon.entity';
+import { Payment } from '../payments/entities/payment.entity';
+import { Report } from '../reports/entities/report.entity';
 import { AddRbacAndUserStatus1741377600000 } from '../database/migrations/1741377600000-add-rbac-and-user-status';
 import * as path from 'path';
 
@@ -85,6 +87,8 @@ export const AppDataSource = new DataSource({
     Shipment,
     InventoryItem,
     Coupon,
+    Payment,
+    Report,
   ],
   migrations,
   synchronize: false,
