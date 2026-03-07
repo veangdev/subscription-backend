@@ -23,9 +23,19 @@ import { AccessControlModule } from './access-control/access-control.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // CRITICAL FOR CLOUD RUN: Lazy database connection - don't block startup
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: databaseConfigFactory,
+      useFactory: async (config: ConfigService) => ({
+        ...databaseConfigFactory(config),
+        // CRITICAL: These prevent blocking during startup
+        autoLoadEntities: true,
+        synchronize: false,
+        migrationsRun: false,
+        // Don't validate connection on startup
+        dropSchema: false,
+        logging: false,
+      }),
     }),
     ScheduleModule.forRoot(),
     AuthModule,
