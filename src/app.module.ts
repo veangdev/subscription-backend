@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { databaseConfigFactory } from './config/database.config';
+import { LazyDatabaseModule } from './config/lazy-database.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -23,32 +22,21 @@ import { AccessControlModule } from './access-control/access-control.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // TEMPORARILY DISABLED FOR CLOUD RUN DEPLOYMENT
-    // TypeOrmModule.forRootAsync({
-    //   inject: [ConfigService],
-    //   useFactory: async (config: ConfigService) => ({
-    //     ...databaseConfigFactory(config),
-    //     autoLoadEntities: true,
-    //     synchronize: false,
-    //     migrationsRun: false,
-    //     logging: false,
-    //   }),
-    // }),
+    LazyDatabaseModule.forRootAsync(), // Lazy-loading database
     ScheduleModule.forRoot(),
-    // TEMPORARILY DISABLED - Database-dependent modules
-    // AuthModule,
-    // AdminAuthModule,
-    // AccessControlModule,
-    // UsersModule,
-    // SubscriptionPlansModule,
-    // SubscriptionsModule,
-    // PaymentsModule,
-    // CouponsModule,
-    // InventoryModule,
-    // ShipmentsModule,
-    // ReportsModule,
-    // AddressesModule,
-    // StripeModule,
+    AuthModule,
+    AdminAuthModule,
+    AccessControlModule,
+    UsersModule,
+    SubscriptionPlansModule,
+    SubscriptionsModule,
+    PaymentsModule,
+    CouponsModule,
+    InventoryModule,
+    ShipmentsModule,
+    ReportsModule,
+    AddressesModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
