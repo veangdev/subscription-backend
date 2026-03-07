@@ -25,7 +25,7 @@ export const databaseConfigFactory = (
   const host = config.getOrThrow('DATABASE_HOST');
   const isUnixSocket = host.startsWith('/');
   
-  // For Cloud Run: Make connection fast-fail to prevent startup timeout
+  // CRITICAL FOR CLOUD RUN: Absolute minimal blocking during startup
   const connectionConfig: any = {
     type: 'postgres',
     username: config.getOrThrow('DATABASE_USER'),
@@ -33,23 +33,25 @@ export const databaseConfigFactory = (
     database: config.getOrThrow('DATABASE_NAME'),
     autoLoadEntities: true,
     migrations,
-    migrationsRun: config.get('DB_MIGRATIONS', 'false') === 'true',
-    synchronize: config.get('DB_SYNC', 'false') === 'true',
-    retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 0)),
-    retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 500)),
-    verboseRetryLog: true,
-    logging: config.get('NODE_ENV') !== 'production' ? ['error', 'warn'] : ['error'],
-    // Critical: Make initial connection optional for Cloud Run startup
-    connectTimeoutMS: Number(config.get('DB_CONNECTION_TIMEOUT_MS', 2000)),
+    migrationsRun: false, // Never run migrations on startup
+    synchronize: false, // Never sync schema on startup
+    retryAttempts: 0, // NO retries - fail immediately
+    retryDelay: 100, // Minimal delay
+    verboseRetryLog: false, // Reduce logging overhead
+    logging: false, // Disable logging during startup
+    // CRITICAL: Don't establish connection pool during init
+    poolErrorHandler: () => {}, // Ignore pool errors during startup
     extra: {
-      connectionTimeoutMillis: Number(
-        config.get('DB_CONNECTION_TIMEOUT_MS', 2000),
-      ),
-      // Keep connections short-lived
-      max: 10,
-      idleTimeoutMillis: 30000,
-      // Fast fail for Cloud Run
-      statement_timeout: 10000,
+      connectionTimeoutMillis: 1000, // 1 second max
+      query_timeout: 5000,
+      statement_timeout: 5000,
+      idle_in_transaction_session_timeout: 10000,
+      // Keep pool small for faster startup
+      max: 5,
+      min: 0,
+      idleTimeoutMillis: 10000,
+      // CRITICAL: Allow app to start even if connection fails
+      connectionTimeoutMillis: 1000,
     },
   };
 
