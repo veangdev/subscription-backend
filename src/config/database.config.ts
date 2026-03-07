@@ -36,22 +36,18 @@ export const databaseConfigFactory = (
     migrationsRun: false, // Never run migrations on startup
     synchronize: false, // Never sync schema on startup
     retryAttempts: 0, // NO retries - fail immediately
-    retryDelay: 100, // Minimal delay
-    verboseRetryLog: false, // Reduce logging overhead
-    logging: false, // Disable logging during startup
-    // CRITICAL: Don't establish connection pool during init
+    retryDelay: 100,
+    verboseRetryLog: false,
+    logging: false,
     poolErrorHandler: () => {}, // Ignore pool errors during startup
     extra: {
-      connectionTimeoutMillis: 1000, // 1 second max
+      connectionTimeoutMillis: 1000,
       query_timeout: 5000,
       statement_timeout: 5000,
       idle_in_transaction_session_timeout: 10000,
-      // Keep pool small for faster startup
       max: 5,
       min: 0,
       idleTimeoutMillis: 10000,
-      // CRITICAL: Allow app to start even if connection fails
-      connectionTimeoutMillis: 1000,
     },
   };
 
