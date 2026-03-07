@@ -1,17 +1,29 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../users/entities/user.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { AdminRefreshDto } from './dto/admin-refresh.dto';
+import { AccessControlService } from '../access-control/access-control.service';
+
+interface AdminTokenPayload {
+  sub: string;
+  email: string;
+  role: string;
+  type?: 'access' | 'refresh';
+}
 
 @Injectable()
 export class AdminAuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly accessControlService: AccessControlService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async login(dto: AdminLoginDto) {
@@ -24,9 +36,8 @@ export class AdminAuthService {
       throw new UnauthorizedException('Invalid username or password');
     }
 
-    // Verify user is admin
-    if (user.role !== 'Admin') {
-      throw new UnauthorizedException('Access denied: Admin role required');
+    if ((user.status ?? 'Active') !== 'Active') {
+      throw new UnauthorizedException('Account is inactive');
     }
 
     // Verify password
@@ -35,20 +46,61 @@ export class AdminAuthService {
       throw new UnauthorizedException('Invalid username or password');
     }
 
-    // Generate JWT
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const access_token = this.jwtService.sign(payload);
+    const access = await this.accessControlService.getUserAccessFromUser(user, {
+      allowLegacyAdminFallback: true,
+    });
 
-    return {
-      access_token,
-      user: {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
-    };
+    if (!access.is_admin) {
+      throw new UnauthorizedException('Access denied: Admin role required');
+    }
+
+    return this.buildAuthResponse(user, access.permissions);
+  }
+
+  async refresh(dto: AdminRefreshDto) {
+    let payload: AdminTokenPayload;
+
+    try {
+      payload = this.jwtService.verify<AdminTokenPayload>(dto.refresh_token, {
+        secret: this.getRefreshTokenSecret(),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user || (user.status ?? 'Active') !== 'Active') {
+      throw new UnauthorizedException('Access denied: Admin role required');
+    }
+
+    const access = await this.accessControlService.getUserAccessFromUser(user, {
+      allowLegacyAdminFallback: true,
+    });
+
+    if (!access.is_admin) {
+      throw new UnauthorizedException('Access denied: Admin role required');
+    }
+
+    return this.buildAuthResponse(user, access.permissions);
+  }
+
+  async getCurrentAdmin(userId: string) {
+    const access = await this.accessControlService.getUserAccessById(userId, {
+      allowLegacyAdminFallback: true,
+    });
+
+    if (!access.is_admin) {
+      throw new UnauthorizedException('Access denied: Admin role required');
+    }
+
+    return this.buildUserResponse(access.user, access.permissions);
   }
 
   async seedDefaultAdmin() {
@@ -59,15 +111,11 @@ export class AdminAuthService {
       });
 
       if (existingAdmin) {
+        existingAdmin.status = existingAdmin.status ?? 'Active';
+        await this.userRepository.save(existingAdmin);
         return {
           message: 'Admin user already exists',
-          user: {
-            id: existingAdmin.id,
-            name: existingAdmin.name,
-            username: existingAdmin.username,
-            email: existingAdmin.email,
-            role: existingAdmin.role,
-          },
+          user: this.buildUserResponse(existingAdmin),
         };
       }
 
@@ -83,6 +131,7 @@ export class AdminAuthService {
         existingByEmail.role = 'Admin';
         existingByEmail.password = hashedPassword;
         existingByEmail.name = 'System Administrator';
+        existingByEmail.status = 'Active';
 
         const updated = await this.userRepository.save(existingByEmail);
 
@@ -92,13 +141,7 @@ export class AdminAuthService {
             username: 'admin',
             password: 'Admin@123',
           },
-          user: {
-            id: updated.id,
-            name: updated.name,
-            username: updated.username,
-            email: updated.email,
-            role: updated.role,
-          },
+          user: this.buildUserResponse(updated),
         };
       }
 
@@ -111,6 +154,7 @@ export class AdminAuthService {
         email: 'admin@boxadmin.com',
         password: hashedPassword,
         role: 'Admin',
+        status: 'Active',
       });
 
       const saved = await this.userRepository.save(adminUser);
@@ -121,13 +165,7 @@ export class AdminAuthService {
           username: 'admin',
           password: 'Admin@123',
         },
-        user: {
-          id: saved.id,
-          name: saved.name,
-          username: saved.username,
-          email: saved.email,
-          role: saved.role,
-        },
+        user: this.buildUserResponse(saved),
       };
     } catch (error) {
       // Return detailed error for debugging
@@ -137,5 +175,65 @@ export class AdminAuthService {
         detail: 'This might be due to missing database column. Please ensure the latest deployment has completed.',
       };
     }
+  }
+
+  private buildAuthResponse(user: User, permissions: string[] = []) {
+    const payload = this.buildAccessTokenPayload(user);
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      refresh_token: this.jwtService.sign(
+        {
+          ...payload,
+          type: 'refresh',
+        },
+        {
+          secret: this.getRefreshTokenSecret(),
+          expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION', '7d'),
+        },
+      ),
+      user: this.buildUserResponse(user, permissions),
+      permissions,
+    };
+  }
+
+  private buildAccessTokenPayload(user: User): AdminTokenPayload {
+    return {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      type: 'access',
+    };
+  }
+
+  private buildUserResponse(
+    user:
+      | User
+      | {
+          id: string;
+          name: string;
+          username?: string | null;
+          email: string;
+          role: string;
+          status?: string;
+        },
+    permissions: string[] = [],
+  ) {
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status ?? 'Active',
+      permissions,
+    };
+  }
+
+  private getRefreshTokenSecret() {
+    return (
+      this.configService.get<string>('JWT_REFRESH_SECRET') ??
+      this.configService.getOrThrow<string>('JWT_SECRET')
+    );
   }
 }

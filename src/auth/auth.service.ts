@@ -28,6 +28,7 @@ export class AuthService {
       ...dto,
       password: hashedPassword,
       role: 'Subscriber',
+      status: 'Active',
     });
     const saved = await this.usersRepository.save(user);
 
@@ -38,6 +39,10 @@ export class AuthService {
     // Find user by email
     const user = await this.usersRepository.findOne({ where: { email: dto.email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    if ((user.status ?? 'Active') !== 'Active') {
+      throw new UnauthorizedException('Account is inactive');
+    }
 
     // Verify password
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
@@ -54,7 +59,9 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
+        username: user.username,
         role: user.role,
+        status: user.status ?? 'Active',
       },
     };
   }

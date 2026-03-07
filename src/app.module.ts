@@ -18,6 +18,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { StripeModule } from './stripe/stripe.module';
+import { AccessControlModule } from './access-control/access-control.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StripeModule } from './stripe/stripe.module';
     ScheduleModule.forRoot(),
     AuthModule,
     AdminAuthModule,
+    AccessControlModule,
     UsersModule,
     SubscriptionPlansModule,
     SubscriptionsModule,

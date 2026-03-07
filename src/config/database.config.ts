@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { Role } from '../access-control/entities/role.entity';
+import { Permission } from '../access-control/entities/permission.entity';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { Address } from '../addresses/entities/address.entity';
@@ -39,6 +41,8 @@ export const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME,
   entities: [
     User,
+    Role,
+    Permission,
     SubscriptionPlan,
     Subscription,
     Address,

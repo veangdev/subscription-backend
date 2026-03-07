@@ -4,10 +4,14 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  JoinColumn,
+  ManyToOne,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
+import { Role } from '../../access-control/entities/role.entity';
 
 @Entity('users')
 export class User {
@@ -19,13 +23,13 @@ export class User {
   name: string;
 
   @Column({ length: 50, unique: true, nullable: true })
-  username: string; // For admin users only
+  username: string | null; // For admin users only
 
   @Column({ length: 100, unique: true })
   email: string;
 
   @Column({ length: 20, nullable: true })
-  phone_number: string;
+  phone_number: string | null;
 
   @Column({ length: 100 })
   @Exclude() // Don't expose password in API responses
@@ -34,10 +38,25 @@ export class User {
   @Column({ length: 20 })
   role: string; // 'Admin' or 'Subscriber'
 
+  @ApiProperty({ example: 'Active', enum: ['Active', 'Inactive'] })
+  @Column({ length: 20, default: 'Active' })
+  status: string;
+
   @CreateDateColumn()
   created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   // Relations
   @OneToMany(() => Subscription, (subscription) => subscription.user)
   subscriptions: Subscription[];
+
+  @ApiPropertyOptional({ type: () => Role })
+  @ManyToOne(() => Role, (roleDetails) => roleDetails.users, {
+    nullable: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: 'role', referencedColumnName: 'name' })
+  role_details?: Role | null;
 }
