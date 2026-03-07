@@ -1,6 +1,10 @@
 // Fast health server that starts immediately on port 8080
 // Then bootstraps NestJS with database in background
 import * as http from 'http';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 
 let nestApp: any = null;
 let nestReady = false;
@@ -49,11 +53,6 @@ healthServer.listen(PORT, '0.0.0.0', () => {
 
 async function bootstrapNestApp() {
   try {
-    const { NestFactory } = await import('@nestjs/core');
-    const { AppModule } = await import('./app.module');
-    const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');
-    const { ValidationPipe } = await import('@nestjs/common');
-    
     console.log('Creating NestJS application...');
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
