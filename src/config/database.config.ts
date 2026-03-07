@@ -29,7 +29,6 @@ export const databaseConfigFactory = (
   const connectionTimeout = Number(config.get('DB_CONNECTION_TIMEOUT_MS', 500));
   const retryAttempts = Number(config.get('DB_RETRY_ATTEMPTS', 0));
   const retryDelay = Number(config.get('DB_RETRY_DELAY_MS', 100));
-  const migrationsRun = config.get('DB_MIGRATIONS', 'false') === 'true';
   
   const connectionConfig: any = {
     type: 'postgres',
@@ -38,7 +37,7 @@ export const databaseConfigFactory = (
     database: config.getOrThrow('DATABASE_NAME'),
     autoLoadEntities: true,
     migrations,
-    migrationsRun,
+    migrationsRun: false,
     synchronize: false, // Never sync schema on startup
     retryAttempts, // NO retries - fail immediately
     retryDelay,

@@ -6,9 +6,11 @@ import { Client } from 'pg';
 
 import { AppModule } from './app.module';
 import { buildCorsHeaders, buildCorsOptions } from './config/cors.config';
+import { AppDataSource } from './config/database.config';
 
 const logger = new Logger('ServerBootstrap');
 const port = Number(process.env.PORT) || 8080;
+const SCHEMA_MIGRATION_LOCK_KEY = 1741377600;
 
 let nestApp: INestApplication | null = null;
 let nestReady = false;
@@ -114,6 +116,7 @@ async function bootstrapNestApp(): Promise<void> {
     }
 
     await app.init();
+    await runRuntimeMigrationsIfEnabled();
 
     nestApp = app;
     nestReady = true;
@@ -154,6 +157,34 @@ function shutdown(signal: string): void {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+async function runRuntimeMigrationsIfEnabled(): Promise<void> {
+  if (process.env.DB_MIGRATIONS !== 'true') {
+    return;
+  }
+
+  const shouldDestroy = !AppDataSource.isInitialized;
+
+  try {
+    if (shouldDestroy) {
+      await AppDataSource.initialize();
+    }
+
+    logger.log('Running runtime migrations');
+    await AppDataSource.query('SELECT pg_advisory_lock($1)', [SCHEMA_MIGRATION_LOCK_KEY]);
+
+    try {
+      const executed = await AppDataSource.runMigrations();
+      logger.log(`Runtime migrations complete (${executed.length} executed)`);
+    } finally {
+      await AppDataSource.query('SELECT pg_advisory_unlock($1)', [SCHEMA_MIGRATION_LOCK_KEY]);
+    }
+  } finally {
+    if (shouldDestroy && AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
+  }
+}
 
 async function runDatabaseProbe() {
   const startTime = Date.now();
