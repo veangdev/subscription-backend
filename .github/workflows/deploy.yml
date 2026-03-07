@@ -94,7 +94,7 @@ jobs:
             --min-instances=0
             --memory=2Gi
             --cpu=4
-            --timeout=600
+            --timeout=3600
             --cpu-boost
             --no-cpu-throttling
             --port=8080
