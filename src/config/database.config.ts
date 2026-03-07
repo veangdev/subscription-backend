@@ -26,6 +26,10 @@ export const databaseConfigFactory = (
   const isUnixSocket = host.startsWith('/');
   
   // CRITICAL FOR CLOUD RUN: Absolute minimal blocking during startup
+  const connectionTimeout = Number(config.get('DB_CONNECTION_TIMEOUT_MS', 500));
+  const retryAttempts = Number(config.get('DB_RETRY_ATTEMPTS', 0));
+  const retryDelay = Number(config.get('DB_RETRY_DELAY_MS', 100));
+  
   const connectionConfig: any = {
     type: 'postgres',
     username: config.getOrThrow('DATABASE_USER'),
@@ -35,18 +39,18 @@ export const databaseConfigFactory = (
     migrations,
     migrationsRun: false, // Never run migrations on startup
     synchronize: false, // Never sync schema on startup
-    retryAttempts: 0, // NO retries - fail immediately
-    retryDelay: 100,
+    retryAttempts, // NO retries - fail immediately
+    retryDelay,
     verboseRetryLog: false,
     logging: false,
     poolErrorHandler: () => {}, // Ignore pool errors during startup
     extra: {
-      connectionTimeoutMillis: 5000, // 5 seconds to connect
-      query_timeout: 30000, // 30 seconds max query time
+      connectionTimeoutMillis: connectionTimeout, // Fail immediately if DB not ready
+      query_timeout: 30000,
       statement_timeout: 30000,
       idle_in_transaction_session_timeout: 60000,
-      max: 10, // Max 10 connections in pool
-      min: 0, // CRITICAL: 0 min connections = lazy connection on first query
+      max: 5,
+      min: 0, // No minimum connections
       idleTimeoutMillis: 30000,
     },
   };

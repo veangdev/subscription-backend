@@ -106,8 +106,8 @@ jobs:
             DATABASE_USER=nestjs_user
             DATABASE_NAME=subscription_db
             DB_RETRY_ATTEMPTS=0
-            DB_RETRY_DELAY_MS=500
-            DB_CONNECTION_TIMEOUT_MS=5000
+            DB_RETRY_DELAY_MS=100
+            DB_CONNECTION_TIMEOUT_MS=500
           secrets: |
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest

@@ -18,6 +18,7 @@ async function bootstrap(): Promise<void> {
   logger.log('Creating Nest application...');
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
+    abortOnError: false, // Continue even if modules fail to initialize
   });
   logger.log('✓ Nest application created');
 
