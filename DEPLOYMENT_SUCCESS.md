@@ -1,12 +1,163 @@
-# 🎉 DEPLOYMENT SUCCESS - Cloud Run
+# 🎉 DEPLOYMENT SUCCESS - Cloud Run (PARTIAL)
 
-## Deployment Status: ✅ SUCCESSFUL
+## Deployment Status: ✅ RUNNING (Minimal Configuration)
 
 **Service URL**: https://subscription-backend-528466251837.us-central1.run.app
 **Region**: us-central1  
 **Project**: box-subscription-system (528466251837)
 **Service**: subscription-backend
-**Latest Commit**: 9c0d70e - "Fix: Correct health check path to /api/health and re-enable all modules"
+**Latest Commit**: 00171d0 - "cleanup: Remove experimental files"
+**Configuration**: Minimal - Health endpoint only (no database, no auth, no business logic)
+
+---
+
+## ⚠️ Current State
+
+### ✅ What's Working
+- HTTP server starts quickly (~20 seconds)
+- Health endpoint responding: `GET /api/health`
+- API documentation: `GET /api/docs`  
+- Auto-deployment from GitHub Actions
+- Cloud Run infrastructure fully configured
+
+### ❌ What's Disabled (Temporarily)
+- TypeORM database connection
+- All authentication modules (AuthModule, AdminAuthModule)
+- Access control (AccessControlModule)
+- All business logic modules:
+  - UsersModule
+  - SubscriptionPlansModule
+  - SubscriptionsModule
+  - PaymentsModule
+  - CouponsModule
+  - InventoryModule
+  - ShipmentsModule
+  - ReportsModule
+  - AddressesModule
+  - StripeModule
+
+---
+
+## 🐛 Root Cause: TypeORM Blocking Startup
+
+### The Problem
+TypeORM's `TypeOrmModule.forRootAsync()` calls `DataSource.initialize()` during NestJS module initialization, BEFORE the HTTP server binds to port 8080. This blocks the server from starting within Cloud Run's timeout.
+
+### Why It Blocks
+1. TypeORM creates connection pool during module bootstrap
+2. Even with `retryAttempts: 0`, connection establishment takes 5-10 seconds
+3. With `min: 2` pool connections, it must establish 2 connections synchronously
+4. HTTP server can't start listening until all modules are initialized
+5. Cloud Run health checks fail → deployment times out
+
+### Attempted Fixes That Failed
+- ✗ Reduced retry attempts to 0
+- ✗ Reduced connection timeout to 1-5 seconds
+- ✗ Set min pool connections to 0
+- ✗ Added `abortOnError: false` to NestJS
+- ✗ Increased Cloud Run resources (2Gi RAM, 4 CPUs, 600s timeout)  
+- ✗ Custom startup probe configuration (unsupported flags)
+- ✗ Custom lazy database initialization wrapper
+
+---
+
+## 🎯 Next Steps: Enable Full Functionality
+
+### Option 1: Standalone Health Server (Recommended)
+Create a simple HTTP server that starts IMMEDIATELY on port 8080 for health checks, then bootstrap NestJS in the background:
+
+```typescript
+// health-server.ts - Starts first on port 8080
+import * as http from 'http';
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200);
+    res.end(JSON.stringify({ status: 'ok' }));
+  }
+});
+
+server.listen(8080, () => {
+  console.log('Health server ready');
+  // Now bootstrap NestJS in background
+  import('./main').then(m => m.bootstrap());
+});
+```
+
+### Option 2: Defer Database Connection
+Use NestJS lifecycle hooks to connect AFTER server starts:
+
+```typescript
+// app.module.ts
+@Module({
+  imports: [
+    // Don't import TypeOrmModule here
+  ],
+})
+export class AppModule implements OnModuleInit {
+  async onModuleInit() {
+    // This runs AFTER HTTP server starts
+    // Initialize database connection here
+  }
+}
+```
+
+### Option 3: Increase Cloud Run Startup Timeout
+Use Cloud Run YAML configuration to extend startup period:
+
+```yaml
+apiVersion: serving.knative.dev/v1
+kind: Service
+spec:
+  template:
+    spec:
+      containers:
+      - startupProbe:
+          httpGet:
+            path: /api/health
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 60  # 60 × 10s = 10 minutes
+```
+
+---
+
+## 📊 Current Configuration
+
+### Resources
+- **Memory**: 2Gi  
+- **CPU**: 4 cores
+- **Timeout**: 600 seconds
+- **CPU Boost**: Enabled
+- **CPU Throttling**: Disabled
+
+### Enabled Modules (Current)
+- ConfigModule (environment variables)
+- ScheduleModule (cron jobs - no jobs defined yet)
+- AppController (health endpoint only)
+- AppService (health status service)
+
+---
+
+## 🚀 Testing Current Deployment
+
+```bash
+# Health check (working)
+curl https://subscription-backend-528466251837.us-central1.run.app/api/health
+
+# API docs (working - but no endpoints)
+curl https://subscription-backend-528466251837.us-central1.run.app/api/docs
+
+# Any database endpoint (404 - modules disabled)
+curl https://subscription-backend-528466251837.us-central1.run.app/api/subscription-plans
+```
+
+---
+
+**Status**: Deployment infrastructure working | Application features disabled pending TypeORM lazy initialization implementation
+
+*Last Updated: 2026-03-07 14:20 UTC*  
+*Document: DEPLOYMENT_SUCCESS.md*
 
 ---
 
