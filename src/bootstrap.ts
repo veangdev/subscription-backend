@@ -9,7 +9,7 @@ import { buildCorsOptions } from './config/cors.config';
 
 const API_PREFIX = 'api';
 
-export = async function bootstrap(httpServer: any) {
+export default async function bootstrap(httpServer: any) {
   console.log('[Bootstrap] Creating Express app...');
   const expressApp = express();
   

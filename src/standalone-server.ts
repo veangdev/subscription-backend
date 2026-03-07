@@ -1,10 +1,11 @@
 // Standalone HTTP server that starts IMMEDIATELY
 // NestJS bootstraps in background after server is listening
-const http = require('http');
+import * as http from 'http';
+
 const PORT = Number(process.env.PORT) || 8080;
 
 let nestReady = false;
-let nestError = null;
+let nestError: Error | null = null;
 
 // Minimal HTTP server - responds instantly
 const server = http.createServer((req, res) => {
@@ -58,12 +59,12 @@ server.listen(PORT, '0.0.0.0', async () => {
   
   // Import and bootstrap NestJS AFTER server is listening
   try {
-    const bootstrap = require('./bootstrap');
-    await bootstrap(server);
+    const bootstrap = await import('./bootstrap');
+    await bootstrap.default(server);
     nestReady = true;
     console.log(`[${new Date().toISOString()}] ✅ NestJS application fully initialized`);
   } catch (error) {
-    nestError = error;
+    nestError = error as Error;
     console.error(`[${new Date().toISOString()}] ❌ NestJS bootstrap failed:`, error);
   }
 });
