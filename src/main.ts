@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 
 import { AppModule } from './app.module';
+import { buildCorsOptions } from './config/cors.config';
 
 const API_PREFIX = 'api';
 const DEFAULT_PORT = 8080;
@@ -12,20 +13,13 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   logger.log(`Bootstrapping application in ${process.env.NODE_ENV || 'development'} mode`);
-  logger.log(`Database host: ${process.env.DATABASE_HOST}`);
-  logger.log(`Database name: ${process.env.DATABASE_NAME}`);
-  logger.log(`Database user: ${process.env.DATABASE_USER}`);
   logger.log(`PORT: ${process.env.PORT || DEFAULT_PORT}`);
-  logger.log(`DB_RETRY_ATTEMPTS: ${process.env.DB_RETRY_ATTEMPTS}`);
-  logger.log(`DB_CONNECTION_TIMEOUT_MS: ${process.env.DB_CONNECTION_TIMEOUT_MS}`);
   
-  logger.log('Creating Nest application (non-blocking)...');
+  logger.log('Creating Nest application...');
   const app = await NestFactory.create(AppModule, {
-    abortOnError: false, // CRITICAL: Don't abort if database fails
     logger: ['error', 'warn', 'log'],
-    bufferLogs: false,
   });
-  logger.log('✓ Nest application created - HTTP server will start immediately');
+  logger.log('✓ Nest application created');
 
   app.setGlobalPrefix(API_PREFIX);
 
@@ -35,19 +29,16 @@ async function bootstrap(): Promise<void> {
   logger.log('✓ Application configuration complete');
 
   const port = Number(process.env.PORT) || DEFAULT_PORT;
-  logger.log(`🚀 Starting HTTP server on 0.0.0.0:${port} NOW...`);
+  logger.log(`🚀 Starting HTTP server on 0.0.0.0:${port}...`);
   await app.listen(port, '0.0.0.0');
 
-  logger.log(`✅ HTTP SERVER LISTENING ON PORT ${port} - CLOUD RUN SHOULD DETECT THIS`);
-  logger.log(`✅ Health endpoint: http://0.0.0.0:${port}/health`);
+  logger.log(`✅ HTTP SERVER LISTENING ON PORT ${port}`);
+  logger.log(`✅ Health endpoint: http://0.0.0.0:${port}/api/health`);
   logger.log(`✅ API Documentation available at /${API_PREFIX}/docs`);
 }
 
 function configureCors(app: INestApplication): void {
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true,
-  });
+  app.enableCors(buildCorsOptions());
 }
 
 function configureValidation(app: INestApplication): void {
