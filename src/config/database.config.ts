@@ -41,13 +41,13 @@ export const databaseConfigFactory = (
     logging: false,
     poolErrorHandler: () => {}, // Ignore pool errors during startup
     extra: {
-      connectionTimeoutMillis: 1000,
-      query_timeout: 5000,
-      statement_timeout: 5000,
-      idle_in_transaction_session_timeout: 10000,
-      max: 5,
-      min: 0,
-      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000, // 5 seconds to connect
+      query_timeout: 30000, // 30 seconds max query time
+      statement_timeout: 30000,
+      idle_in_transaction_session_timeout: 60000,
+      max: 10, // Max 10 connections in pool
+      min: 2, // Min 2 connections
+      idleTimeoutMillis: 30000,
     },
   };
 

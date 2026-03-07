@@ -23,37 +23,32 @@ import { AccessControlModule } from './access-control/access-control.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // TEMPORARY: Disable TypeORM to test if it's blocking startup
-    // TypeOrmModule.forRootAsync({
-    //   inject: [ConfigService],
-    //   useFactory: async (config: ConfigService) => ({
-    //     ...databaseConfigFactory(config),
-    //     // CRITICAL: These prevent blocking during startup
-    //     autoLoadEntities: true,
-    //     synchronize: false,
-    //     migrationsRun: false,
-    //     // Don't validate connection on startup
-    //     dropSchema: false,
-    //     logging: false,
-    //     // CRITICAL: Skip initial connection test - connect lazily on first query
-    //     connectTimeoutMS: 1000,
-    //     maxQueryExecutionTime: 1000,
-    //   }),
-    // }),
+    // Database connection - will initialize during startup but won't block with retryAttempts=0
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        ...databaseConfigFactory(config),
+        autoLoadEntities: true,
+        synchronize: false,
+        migrationsRun: false,
+        dropSchema: false,
+        logging: false,
+      }),
+    }),
     ScheduleModule.forRoot(),
     AuthModule,
     AdminAuthModule,
     AccessControlModule,
-   // UsersModule,
-    //SubscriptionPlansModule,
-    //SubscriptionsModule,
-    //PaymentsModule,
-    //CouponsModule,
-    //InventoryModule,
-    //ShipmentsModule,
-    //ReportsModule,
-    //AddressesModule,
-    //StripeModule,
+    UsersModule,
+    SubscriptionPlansModule,
+    SubscriptionsModule,
+    PaymentsModule,
+    CouponsModule,
+    InventoryModule,
+    ShipmentsModule,
+    ReportsModule,
+    AddressesModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
