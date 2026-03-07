@@ -24,9 +24,6 @@ import { AccessControlModule } from './access-control/access-control.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    // All modules disabled to ensure fast startup
-    // TypeOrmModule disabled - blocking HTTP server startup
-    // AuthModule, AdminAuthModule, AccessControlModule disabled - require database
   ],
   controllers: [AppController],
   providers: [AppService],
