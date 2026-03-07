@@ -1,8 +1,8 @@
 // src/config/database.config.ts
-import * as dotenv from 'dotenv';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import * as fs from 'fs';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../access-control/entities/role.entity';
 import { Permission } from '../access-control/entities/permission.entity';
@@ -15,9 +15,7 @@ import { Coupon } from '../coupons/entities/coupon.entity';
 import { AddRbacAndUserStatus1741377600000 } from '../database/migrations/1741377600000-add-rbac-and-user-status';
 import * as path from 'path';
 
-// Load environment variables
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+loadLocalEnvFile();
 
 const migrations = [AddRbacAndUserStatus1741377600000];
 
@@ -36,6 +34,12 @@ export const databaseConfigFactory = (
   synchronize: config.get('DB_SYNC', 'false') === 'true',
   retryAttempts: Number(config.get('DB_RETRY_ATTEMPTS', 20)),
   retryDelay: Number(config.get('DB_RETRY_DELAY_MS', 5000)),
+  verboseRetryLog: true,
+  extra: {
+    connectionTimeoutMillis: Number(
+      config.get('DB_CONNECTION_TIMEOUT_MS', 10000),
+    ),
+  },
 });
 
 // Standalone DataSource for migrations and seeders
@@ -61,3 +65,47 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
 });
+
+function loadLocalEnvFile() {
+  const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+  const envPath = path.resolve(process.cwd(), envFile);
+
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+
+  const raw = fs.readFileSync(envPath, 'utf8');
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    process.env[key] = stripWrappingQuotes(value);
+  }
+}
+
+function stripWrappingQuotes(value: string) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
+}
