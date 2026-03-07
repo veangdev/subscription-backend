@@ -46,7 +46,7 @@ export const databaseConfigFactory = (
       statement_timeout: 30000,
       idle_in_transaction_session_timeout: 60000,
       max: 10, // Max 10 connections in pool
-      min: 2, // Min 2 connections
+      min: 0, // CRITICAL: 0 min connections = lazy connection on first query
       idleTimeoutMillis: 30000,
     },
   };
