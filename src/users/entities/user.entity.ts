@@ -22,13 +22,13 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 50, unique: true, nullable: true })
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
   username: string | null; // For admin users only
 
   @Column({ length: 100, unique: true })
   email: string;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   phone_number: string | null;
 
   @Column({ length: 100 })
