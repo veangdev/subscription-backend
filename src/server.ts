@@ -2,6 +2,7 @@ import * as http from 'http';
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Client } from 'pg';
 
 import { AppModule } from './app.module';
 import { buildCorsHeaders, buildCorsOptions } from './config/cors.config';
@@ -11,6 +12,7 @@ const port = Number(process.env.PORT) || 8080;
 
 let nestApp: INestApplication | null = null;
 let nestReady = false;
+let bootstrapError: string | null = null;
 
 const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin;
@@ -31,19 +33,36 @@ const server = http.createServer(async (req, res) => {
         status: nestReady ? 'ok' : 'starting',
         environment: process.env.NODE_ENV || 'development',
         nestReady,
+        bootstrapError,
+        dbTest: '/api/db-test',
         timestamp: new Date().toISOString(),
       }),
     );
     return;
   }
 
+  if (url.pathname === '/db-test' || url.pathname === '/api/db-test') {
+    const result = await runDatabaseProbe();
+    res.writeHead(result.success ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
   if (!nestReady || !nestApp) {
+    const failedToBootstrap = Boolean(bootstrapError);
     res.writeHead(503, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
         statusCode: 503,
-        message: 'Application is still initializing',
+        message: failedToBootstrap
+          ? 'Application startup failed'
+          : 'Application is still initializing',
         error: 'Service Unavailable',
+        details: {
+          bootstrapError,
+          health: '/api/health',
+          dbTest: '/api/db-test',
+        },
       }),
     );
     return;
@@ -61,6 +80,7 @@ server.listen(port, '0.0.0.0', () => {
 async function bootstrapNestApp(): Promise<void> {
   try {
     logger.log('Bootstrapping Nest application in background');
+    bootstrapError = null;
 
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
@@ -100,6 +120,7 @@ async function bootstrapNestApp(): Promise<void> {
     logger.log('Nest application initialized successfully');
   } catch (error) {
     nestReady = false;
+    bootstrapError = getErrorMessage(error);
     logger.error('Nest background bootstrap failed', error as Error);
   }
 }
@@ -133,3 +154,55 @@ function shutdown(signal: string): void {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+async function runDatabaseProbe() {
+  const startTime = Date.now();
+  const host = process.env.DATABASE_HOST;
+  const database = process.env.DATABASE_NAME;
+  const isUnixSocket = host?.startsWith('/');
+
+  const client = new Client({
+    host: isUnixSocket ? host : undefined,
+    port: isUnixSocket ? undefined : Number(process.env.DATABASE_PORT || 5432),
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database,
+    connectionTimeoutMillis: 2000,
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query('SELECT NOW() as now');
+    await client.end();
+
+    return {
+      success: true,
+      duration: Date.now() - startTime,
+      connection: {
+        host: isUnixSocket ? host : `${host}:${process.env.DATABASE_PORT || 5432}`,
+        database,
+      },
+      result: result.rows[0],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      duration: Date.now() - startTime,
+      connection: {
+        host: isUnixSocket ? host : `${host}:${process.env.DATABASE_PORT || 5432}`,
+        database,
+      },
+      error: getErrorMessage(error),
+    };
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
