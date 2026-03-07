@@ -31,4 +31,12 @@ export class AdminAuthController {
     }
     return user;
   }
+
+  @Public()
+  @Post('seed-default-admin')
+  @ApiOperation({ summary: 'Seed default admin user (username: admin, password: Admin@123)' })
+  @ApiOkResponse({ description: 'Default admin user created or already exists' })
+  seedDefaultAdmin() {
+    return this.adminAuthService.seedDefaultAdmin();
+  }
 }

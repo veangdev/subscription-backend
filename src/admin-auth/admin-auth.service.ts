@@ -50,4 +50,52 @@ export class AdminAuthService {
       },
     };
   }
+
+  async seedDefaultAdmin() {
+    // Check if admin already exists
+    const existingAdmin = await this.userRepository.findOne({
+      where: { username: 'admin' },
+    });
+
+    if (existingAdmin) {
+      return {
+        message: 'Admin user already exists',
+        user: {
+          id: existingAdmin.id,
+          name: existingAdmin.name,
+          username: existingAdmin.username,
+          email: existingAdmin.email,
+          role: existingAdmin.role,
+        },
+      };
+    }
+
+    // Create default admin user
+    const hashedPassword = await bcrypt.hash('Admin@123', 10);
+
+    const adminUser = this.userRepository.create({
+      name: 'System Administrator',
+      username: 'admin',
+      email: 'admin@boxadmin.com',
+      password: hashedPassword,
+      role: 'Admin',
+    });
+
+    const saved = await this.userRepository.save(adminUser);
+
+    return {
+      message: 'Admin user created successfully',
+      credentials: {
+        username: 'admin',
+        password: 'Admin@123',
+      },
+      user: {
+        id: saved.id,
+        name: saved.name,
+        username: saved.username,
+        email: saved.email,
+        role: saved.role,
+      },
+    };
+  }
 }
