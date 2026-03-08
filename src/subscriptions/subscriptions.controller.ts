@@ -6,6 +6,7 @@ import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { Subscription } from './entities/subscription.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { SubscriberDashboardResponseDto } from './dto/subscriber-dashboard-response.dto';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
@@ -32,6 +33,18 @@ export class SubscriptionsController {
   @ApiOkResponse({ description: 'Current active subscription (or null)' })
   findMySubscription(@CurrentUser() user: { id: string; email: string }): Promise<Subscription | null> {
     return this.subscriptionsService.findCurrentByUserId(user.id);
+  }
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Get current user dashboard summary' })
+  @ApiOkResponse({
+    description: 'Dashboard summary for the authenticated subscriber',
+    type: SubscriberDashboardResponseDto,
+  })
+  getDashboard(
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<SubscriberDashboardResponseDto> {
+    return this.subscriptionsService.buildDashboardForUser(user.id);
   }
 
   @Post('subscribe')

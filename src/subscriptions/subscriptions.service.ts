@@ -1,11 +1,20 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Subscription } from './entities/subscription.entity';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { Shipment } from '../shipments/entities/shipment.entity';
+import {
+  DashboardShipmentStepDto,
+  DashboardShipmentSummaryDto,
+  DashboardSubscriptionSummaryDto,
+  DashboardBillingSummaryDto,
+  SubscriberDashboardResponseDto,
+} from './dto/subscriber-dashboard-response.dto';
+import { Payment } from '../payments/entities/payment.entity';
 
 @Injectable()
 export class SubscriptionsService {
@@ -14,6 +23,8 @@ export class SubscriptionsService {
     private readonly subscriptionsRepository: Repository<Subscription>,
     @InjectRepository(SubscriptionPlan)
     private readonly plansRepository: Repository<SubscriptionPlan>,
+    @InjectRepository(Shipment)
+    private readonly shipmentsRepository: Repository<Shipment>,
   ) {}
 
   create(dto: CreateSubscriptionDto): Promise<Subscription> {
@@ -77,5 +88,184 @@ export class SubscriptionsService {
     });
 
     return this.subscriptionsRepository.save(subscription);
+  }
+
+  async buildDashboardForUser(userId: string): Promise<SubscriberDashboardResponseDto> {
+    const activeSubscriptions = await this.subscriptionsRepository.find({
+      where: {
+        user_id: userId,
+        status: In(['ACTIVE', 'PAUSED']),
+      },
+      relations: ['plan', 'payments'],
+      order: { end_date: 'ASC' },
+    });
+
+    const latestShipment = await this.shipmentsRepository
+      .createQueryBuilder('shipment')
+      .leftJoinAndSelect('shipment.subscription', 'subscription')
+      .leftJoinAndSelect('subscription.plan', 'plan')
+      .where('subscription.user_id = :userId', { userId })
+      .andWhere('subscription.status IN (:...statuses)', {
+        statuses: ['ACTIVE', 'PAUSED'],
+      })
+      .orderBy('shipment.shipment_date', 'DESC')
+      .addOrderBy('shipment.id', 'DESC')
+      .getOne();
+
+    return {
+      billing: this.buildBillingSummary(activeSubscriptions),
+      latest_shipment: latestShipment
+        ? this.buildShipmentSummary(latestShipment)
+        : null,
+      active_subscriptions: activeSubscriptions.map((subscription) =>
+        this.buildSubscriptionSummary(subscription),
+      ),
+    };
+  }
+
+  private buildBillingSummary(
+    subscriptions: Subscription[],
+  ): DashboardBillingSummaryDto {
+    const nextBillingDate = subscriptions.find((subscription) => subscription.end_date)?.end_date;
+
+    return {
+      next_billing_date: this.formatDateOnly(nextBillingDate),
+      total_amount: this.roundCurrency(
+        subscriptions.reduce(
+          (sum, subscription) => sum + Number(subscription.plan?.price ?? 0),
+          0,
+        ),
+      ),
+      currency: 'USD',
+      subscription_count: subscriptions.length,
+    };
+  }
+
+  private buildSubscriptionSummary(
+    subscription: Subscription,
+  ): DashboardSubscriptionSummaryDto {
+    return {
+      id: subscription.id,
+      plan_id: subscription.plan_id,
+      name: subscription.plan?.name ?? 'Subscription',
+      status: subscription.status,
+      recharge_date: this.formatDateOnly(subscription.end_date),
+      price: this.roundCurrency(Number(subscription.plan?.price ?? 0)),
+      frequency_in_days: subscription.plan?.frequency_in_days ?? 0,
+      billing_status: this.resolveBillingStatus(subscription.payments ?? []),
+    };
+  }
+
+  private buildShipmentSummary(shipment: Shipment): DashboardShipmentSummaryDto {
+    const currentStep = this.mapShipmentStatusToStep(shipment.status);
+    const steps = this.buildShipmentSteps(currentStep);
+    const estimatedDeliveryDate = this.buildEstimatedDeliveryDate(
+      shipment.shipment_date,
+      shipment.status,
+    );
+
+    return {
+      id: shipment.id,
+      subscription_id: shipment.subscription_id,
+      subscription_name: shipment.subscription?.plan?.name ?? 'Subscription',
+      status: shipment.status,
+      shipment_date: this.formatDateOnly(shipment.shipment_date) ?? '',
+      estimated_delivery_date: this.formatDateOnly(estimatedDeliveryDate),
+      tracking_number: shipment.tracking_number ?? null,
+      progress: this.calculateShipmentProgress(currentStep),
+      steps,
+    };
+  }
+
+  private resolveBillingStatus(payments: Payment[]): string {
+    if (payments.length === 0) {
+      return 'PENDING';
+    }
+
+    const latestPayment = [...payments].sort(
+      (left, right) =>
+        new Date(right.payment_date).getTime() - new Date(left.payment_date).getTime(),
+    )[0];
+
+    switch (latestPayment?.payment_status?.toUpperCase()) {
+      case 'SUCCESS':
+        return 'PAID';
+      case 'FAILED':
+        return 'FAILED';
+      case 'PENDING':
+        return 'PENDING';
+      default:
+        return 'PENDING';
+    }
+  }
+
+  private mapShipmentStatusToStep(status: string): 'PACKED' | 'SHIPPED' | 'DELIVERED' {
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
+        return 'DELIVERED';
+      case 'SHIPPED':
+        return 'SHIPPED';
+      default:
+        return 'PACKED';
+    }
+  }
+
+  private buildShipmentSteps(
+    currentStep: 'PACKED' | 'SHIPPED' | 'DELIVERED',
+  ): DashboardShipmentStepDto[] {
+    const orderedSteps = [
+      { key: 'PACKED', label: 'Packed' },
+      { key: 'SHIPPED', label: 'Shipped' },
+      { key: 'DELIVERED', label: 'Delivered' },
+    ] as const;
+    const currentIndex = orderedSteps.findIndex((step) => step.key === currentStep);
+
+    return orderedSteps.map((step, index) => ({
+      key: step.key,
+      label: step.label,
+      completed: index <= currentIndex,
+      current: index === currentIndex,
+    }));
+  }
+
+  private calculateShipmentProgress(currentStep: 'PACKED' | 'SHIPPED' | 'DELIVERED'): number {
+    switch (currentStep) {
+      case 'DELIVERED':
+        return 1;
+      case 'SHIPPED':
+        return 0.67;
+      default:
+        return 0.33;
+    }
+  }
+
+  private buildEstimatedDeliveryDate(
+    shipmentDate: Date,
+    status: string,
+  ): Date {
+    const baseDate = new Date(shipmentDate);
+
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
+        return baseDate;
+      case 'SHIPPED':
+        baseDate.setDate(baseDate.getDate() + 3);
+        return baseDate;
+      default:
+        baseDate.setDate(baseDate.getDate() + 7);
+        return baseDate;
+    }
+  }
+
+  private formatDateOnly(value: Date | null | undefined): string | null {
+    if (!value) {
+      return null;
+    }
+
+    return new Date(value).toISOString().slice(0, 10);
+  }
+
+  private roundCurrency(value: number): number {
+    return Number(value.toFixed(2));
   }
 }
