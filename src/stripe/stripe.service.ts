@@ -432,19 +432,62 @@ export class StripeService {
   resolvePriceIdForPlan(plan: SubscriptionPlan): string {
     const normalizedPlanName = plan.name
       .trim()
-      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
       .toUpperCase();
-    const cycle = plan.frequency_in_days >= 360 ? 'YEARLY' : 'MONTHLY';
+    const cycle = this.resolveStripeCycleKey(plan.frequency_in_days);
     const envKey = `STRIPE_PRICE_${normalizedPlanName}_${cycle}`;
     const priceId = this.configService.get<string>(envKey);
 
     if (!priceId) {
       throw new InternalServerErrorException(
-        `${envKey} is not configured for Stripe plan mapping`,
+        `Stripe price mapping is missing for ${plan.name} (${this.describeBillingFrequency(
+          plan.frequency_in_days,
+        )}). Expected environment variable: ${envKey}`,
       );
     }
 
     return priceId;
+  }
+
+  private resolveStripeCycleKey(frequencyInDays: number): string {
+    if (frequencyInDays >= 360) {
+      return 'YEARLY';
+    }
+
+    if ([89, 90, 91, 92].includes(frequencyInDays)) {
+      return 'EVERY_3_MONTHS';
+    }
+
+    if (frequencyInDays === 14) {
+      return 'EVERY_2_WEEKS';
+    }
+
+    if (frequencyInDays === 7) {
+      return 'WEEKLY';
+    }
+
+    return 'MONTHLY';
+  }
+
+  private describeBillingFrequency(frequencyInDays: number): string {
+    if (frequencyInDays >= 360) {
+      return 'yearly';
+    }
+
+    if ([89, 90, 91, 92].includes(frequencyInDays)) {
+      return 'every 3 months';
+    }
+
+    if (frequencyInDays === 14) {
+      return 'every 2 weeks';
+    }
+
+    if (frequencyInDays === 7) {
+      return 'weekly';
+    }
+
+    return 'monthly';
   }
 
   /**
