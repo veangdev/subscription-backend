@@ -1,8 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ShipmentsService } from './shipments.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
+import {
+  SubscriberShipmentHistoryDetailDto,
+  SubscriberShipmentHistoryItemDto,
+} from './dto/subscriber-shipment-history-response.dto';
 import { Shipment } from './entities/shipment.entity';
 
 @ApiTags('Shipments')
@@ -23,6 +28,30 @@ export class ShipmentsController {
   @ApiOkResponse({ description: 'List of all shipments', type: [Shipment] })
   findAll(): Promise<Shipment[]> {
     return this.shipmentsService.findAll();
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Get shipment history for current authenticated user' })
+  @ApiOkResponse({
+    description: 'Shipment history for the current authenticated user',
+    type: [SubscriberShipmentHistoryItemDto],
+  })
+  findHistory(@CurrentUser() user: { id: string; email: string }) {
+    return this.shipmentsService.findHistoryByUser(user.id);
+  }
+
+  @Get('history/:id')
+  @ApiOperation({ summary: 'Get a shipment history detail for current authenticated user' })
+  @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiOkResponse({
+    description: 'Shipment history detail for the current authenticated user',
+    type: SubscriberShipmentHistoryDetailDto,
+  })
+  findHistoryDetail(
+    @CurrentUser() user: { id: string; email: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.shipmentsService.findHistoryDetailByUser(user.id, id);
   }
 
   @Get(':id')

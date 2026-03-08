@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { AuthMeResponseDto } from './dto/auth-me-response.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
@@ -32,8 +33,8 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('me')
   @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiOkResponse({ description: 'Current user info' })
+  @ApiOkResponse({ description: 'Current user info', type: AuthMeResponseDto })
   getMe(@CurrentUser() user: { id: string; email: string }) {
-    return user;
+    return this.authService.getCurrentUser(user.id);
   }
 }

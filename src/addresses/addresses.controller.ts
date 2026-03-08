@@ -7,12 +7,14 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AddressesService } from './addresses.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
 @ApiTags('Addresses')
+@ApiBearerAuth()
 @Controller('addresses')
 export class AddressesController {
   constructor(private readonly addressesService: AddressesService) {}
@@ -27,6 +29,12 @@ export class AddressesController {
   @ApiOperation({ summary: 'Get all addresses' })
   findAll() {
     return this.addressesService.findAll();
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get addresses for current authenticated user' })
+  findMyAddresses(@CurrentUser() user: { id: string; email: string }) {
+    return this.addressesService.findByUser(user.id);
   }
 
   @Get('user/:userId')

@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../users/entities/user.entity';
+import { AuthMeResponseDto } from './dto/auth-me-response.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -49,6 +50,23 @@ export class AuthService {
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
     return this.buildAuthResponse(user);
+  }
+
+  async getCurrentUser(userId: string): Promise<AuthMeResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone_number: user.phone_number,
+      role: user.role,
+      status: user.status ?? 'Active',
+      created_at: user.created_at.toISOString(),
+    };
   }
 
   private buildAuthResponse(user: User) {
