@@ -116,7 +116,7 @@ export class ShipmentsService {
       tracking_number: shipment.tracking_number ?? null,
       amount: this.resolveAmount(shipment),
       payment_status: payment?.payment_status ?? 'SUCCESS',
-      payment_date: payment?.payment_date?.toISOString() ?? null,
+      payment_date: this.formatDateTime(payment?.payment_date),
       subscription_status: shipment.subscription?.status ?? 'ACTIVE',
       subscription_start_date: this.formatDateOnly(shipment.subscription?.start_date),
       subscription_end_date: this.formatDateOnly(shipment.subscription?.end_date),
@@ -146,7 +146,9 @@ export class ShipmentsService {
       if (!latest) {
         return payment;
       }
-      return payment.payment_date > latest.payment_date ? payment : latest;
+      return new Date(payment.payment_date).getTime() > new Date(latest.payment_date).getTime()
+        ? payment
+        : latest;
     }, payments[0]);
   }
 
@@ -166,13 +168,23 @@ export class ShipmentsService {
     return '/mo';
   }
 
-  private formatDateOnly(value: Date): string;
-  private formatDateOnly(value?: Date | null): string | null;
-  private formatDateOnly(value?: Date | null): string | null {
+  private formatDateOnly(value: Date | string): string;
+  private formatDateOnly(value?: Date | string | null): string | null;
+  private formatDateOnly(value?: Date | string | null): string | null {
     if (!value) {
       return null;
     }
 
-    return value.toISOString().slice(0, 10);
+    const normalized = new Date(value);
+    return Number.isNaN(normalized.getTime()) ? null : normalized.toISOString().slice(0, 10);
+  }
+
+  private formatDateTime(value?: Date | string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = new Date(value);
+    return Number.isNaN(normalized.getTime()) ? null : normalized.toISOString();
   }
 }
