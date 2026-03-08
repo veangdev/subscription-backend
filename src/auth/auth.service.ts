@@ -53,18 +53,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const identifier = dto.identifier?.trim() || dto.email?.trim() || '';
-    if (!identifier) {
-      throw new BadRequestException('Phone number or email is required');
-    }
-
-    const user = identifier.includes('@')
-      ? await this.usersRepository.findOne({
-          where: { email: this.normalizeEmail(identifier) ?? '' },
-        })
-      : await this.usersRepository.findOne({
-          where: { phone_number: this.normalizePhoneNumber(identifier) },
-        });
+    const normalizedPhone = this.normalizePhoneNumber(dto.phone_number);
+    const user = await this.usersRepository.findOne({
+      where: { phone_number: normalizedPhone },
+    });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -118,11 +110,17 @@ export class AuthService {
 
   private normalizePhoneNumber(phone: string): string {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 8 || digits.length > 15) {
-      throw new BadRequestException('Phone number must contain 8 to 15 digits');
+    const localDigits = digits.startsWith('855')
+      ? digits.slice(3)
+      : digits.startsWith('0')
+        ? digits.slice(1)
+        : digits;
+
+    if (localDigits.length < 8 || localDigits.length > 9) {
+      throw new BadRequestException('Cambodia phone number must contain 8 to 9 digits after +855');
     }
 
-    return `+${digits}`;
+    return `+855${localDigits}`;
   }
 
   private buildPhonePlaceholderEmail(phoneNumber: string): string {

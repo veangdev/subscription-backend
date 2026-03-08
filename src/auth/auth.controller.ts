@@ -23,7 +23,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  @ApiOperation({ summary: 'Login with phone number or email + password' })
+  @ApiOperation({ summary: 'Login with phone number + password' })
   @ApiOkResponse({ description: 'JWT returned' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
