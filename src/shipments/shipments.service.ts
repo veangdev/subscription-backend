@@ -166,6 +166,8 @@ export class ShipmentsService {
     return '/mo';
   }
 
+  private formatDateOnly(value: Date): string;
+  private formatDateOnly(value?: Date | null): string | null;
   private formatDateOnly(value?: Date | null): string | null {
     if (!value) {
       return null;
