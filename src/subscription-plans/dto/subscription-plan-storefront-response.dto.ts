@@ -25,6 +25,12 @@ export class SubscriptionPlanStorefrontItemDto {
   period_label: string;
 
   @ApiProperty({
+    type: [String],
+    example: ['6 organic self-care essentials', 'Monthly wellness curation', 'Free doorstep delivery'],
+  })
+  features: string[];
+
+  @ApiProperty({
     example: 'BEST VALUE',
     required: false,
     nullable: true,

@@ -14,6 +14,7 @@ type StorefrontPreset = {
   title: string;
   subtitle: string;
   category: string;
+  features: string[];
   badge?: string;
   featured_label?: string;
   rating: number;
@@ -40,6 +41,11 @@ export class SubscriptionPlansService {
       title: 'The Wellness Box',
       subtitle: 'Curated for your peace of mind. Includes 6 organic self-care essentials.',
       category: 'Wellness',
+      features: [
+        '6 organic self-care essentials',
+        'Monthly wellness curation',
+        'Free doorstep delivery',
+      ],
       featured_label: 'PICK OF THE MONTH',
       rating: 4.9,
     },
@@ -47,6 +53,11 @@ export class SubscriptionPlansService {
       title: 'Eco-Home Essentials',
       subtitle: 'Green living made simple with zero-waste home supplies.',
       category: 'Wellness',
+      features: [
+        'Zero-waste home supplies',
+        'Thoughtfully sourced eco picks',
+        'Monthly refill-ready bundle',
+      ],
       badge: 'BEST VALUE',
       rating: 4.9,
     },
@@ -54,6 +65,11 @@ export class SubscriptionPlansService {
       title: "Gamer's Loot",
       subtitle: 'Top-tier peripherals, accessories, and fuel for late-night sessions.',
       category: 'Tech',
+      features: [
+        'Premium gaming accessories',
+        'High-performance gear picks',
+        'Late-night snack extras',
+      ],
       badge: 'POPULAR',
       rating: 4.8,
     },
@@ -61,6 +77,11 @@ export class SubscriptionPlansService {
       title: 'Snack Stash Express',
       subtitle: 'Sweet, savory, and seasonal treats delivered for every craving.',
       category: 'Snacks',
+      features: [
+        'Sweet and savory snack rotation',
+        'Seasonal limited-edition treats',
+        'Quick monthly delivery',
+      ],
       badge: 'TRENDING',
       rating: 4.7,
     },
@@ -68,6 +89,11 @@ export class SubscriptionPlansService {
       title: 'Glow Ritual Box',
       subtitle: 'Skin-loving beauty picks for a polished self-care routine.',
       category: 'Beauty',
+      features: [
+        'Beauty and skincare essentials',
+        'Glow-focused monthly routine',
+        'Exclusive editor picks',
+      ],
       badge: 'EDITOR PICK',
       rating: 4.9,
     },
@@ -189,6 +215,7 @@ export class SubscriptionPlansService {
       category: preset.category,
       price: Number(plan.price),
       period_label: this.resolvePeriodLabel(plan.frequency_in_days),
+      features: preset.features,
       badge: isFeatured ? null : preset.badge ?? null,
       featured_label: isFeatured ? preset.featured_label ?? 'FEATURED' : null,
       rating: preset.rating,
@@ -207,6 +234,11 @@ export class SubscriptionPlansService {
       title,
       subtitle: `A curated ${category.toLowerCase()} subscription delivered every ${plan.frequency_in_days} days.`,
       category,
+      features: [
+        `${category} favorites curated for your routine`,
+        `Delivery every ${plan.frequency_in_days} days`,
+        'Flexible subscription access',
+      ],
       badge: 'NEW',
       rating: Number((4.6 + Math.min(presetIndex, 3) * 0.1).toFixed(1)),
     };
