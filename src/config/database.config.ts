@@ -27,10 +27,11 @@ export const databaseConfigFactory = (
   const host = config.getOrThrow('DATABASE_HOST');
   const isUnixSocket = host.startsWith('/');
   
-  // CRITICAL FOR CLOUD RUN: Absolute minimal blocking during startup
-  const connectionTimeout = Number(config.get('DB_CONNECTION_TIMEOUT_MS', 500));
-  const retryAttempts = Number(config.get('DB_RETRY_ATTEMPTS', 0));
-  const retryDelay = Number(config.get('DB_RETRY_DELAY_MS', 100));
+  // Cloud Run already binds the HTTP port immediately in server.ts, so Nest can
+  // afford a realistic DB timeout here instead of failing after 500ms.
+  const connectionTimeout = Number(config.get('DB_CONNECTION_TIMEOUT_MS', 5000));
+  const retryAttempts = Number(config.get('DB_RETRY_ATTEMPTS', 2));
+  const retryDelay = Number(config.get('DB_RETRY_DELAY_MS', 1000));
   
   const connectionConfig: any = {
     type: 'postgres',
@@ -41,7 +42,7 @@ export const databaseConfigFactory = (
     migrations,
     migrationsRun: false,
     synchronize: false, // Never sync schema on startup
-    retryAttempts, // NO retries - fail immediately
+    retryAttempts,
     retryDelay,
     verboseRetryLog: false,
     logging: false,
