@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthMeResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
@@ -7,8 +7,12 @@ export class AuthMeResponseDto {
   @ApiProperty({ example: 'Vansao' })
   name: string;
 
-  @ApiProperty({ example: 'vansao@example.com' })
-  email: string;
+  @ApiPropertyOptional({
+    example: 'vansao@example.com',
+    required: false,
+    nullable: true,
+  })
+  email: string | null;
 
   @ApiProperty({
     example: '+85512345678',

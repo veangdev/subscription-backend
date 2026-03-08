@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,16 +17,32 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    // Check if email already exists
-    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
-    if (existing) throw new ConflictException('Email already registered');
+    const normalizedPhone = this.normalizePhoneNumber(dto.phone_number);
+    const normalizedEmail = this.normalizeEmail(dto.email);
 
-    // Hash password
+    const existingByPhone = await this.usersRepository.findOne({
+      where: { phone_number: normalizedPhone },
+    });
+    if (existingByPhone) {
+      throw new ConflictException('Phone number already registered');
+    }
+
+    if (normalizedEmail) {
+      const existingByEmail = await this.usersRepository.findOne({
+        where: { email: normalizedEmail },
+      });
+      if (existingByEmail) {
+        throw new ConflictException('Email already registered');
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const storedEmail = normalizedEmail ?? this.buildPhonePlaceholderEmail(normalizedPhone);
 
-    // Create user with default role
     const user = this.usersRepository.create({
-      ...dto,
+      name: dto.name.trim(),
+      email: storedEmail,
+      phone_number: normalizedPhone,
       password: hashedPassword,
       role: 'Subscriber',
       status: 'Active',
@@ -37,15 +53,25 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    // Find user by email
-    const user = await this.usersRepository.findOne({ where: { email: dto.email } });
+    const identifier = dto.identifier?.trim() || dto.email?.trim() || '';
+    if (!identifier) {
+      throw new BadRequestException('Phone number or email is required');
+    }
+
+    const user = identifier.includes('@')
+      ? await this.usersRepository.findOne({
+          where: { email: this.normalizeEmail(identifier) ?? '' },
+        })
+      : await this.usersRepository.findOne({
+          where: { phone_number: this.normalizePhoneNumber(identifier) },
+        });
+
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     if ((user.status ?? 'Active') !== 'Active') {
       throw new UnauthorizedException('Account is inactive');
     }
 
-    // Verify password
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
@@ -61,7 +87,7 @@ export class AuthService {
     return {
       id: user.id,
       name: user.name,
-      email: user.email,
+      email: this.toClientEmail(user.email),
       phone_number: user.phone_number,
       role: user.role,
       status: user.status ?? 'Active',
@@ -70,17 +96,49 @@ export class AuthService {
   }
 
   private buildAuthResponse(user: User) {
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         name: user.name,
-        email: user.email,
+        email: this.toClientEmail(user.email),
+        phone_number: user.phone_number,
         username: user.username,
         role: user.role,
         status: user.status ?? 'Active',
       },
     };
+  }
+
+  private normalizeEmail(email?: string | null): string | null {
+    const normalizedEmail = email?.trim()?.toLowerCase() ?? '';
+    return normalizedEmail.length > 0 ? normalizedEmail : null;
+  }
+
+  private normalizePhoneNumber(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) {
+      throw new BadRequestException('Phone number must contain 8 to 15 digits');
+    }
+
+    return `+${digits}`;
+  }
+
+  private buildPhonePlaceholderEmail(phoneNumber: string): string {
+    const normalizedDigits = phoneNumber.replace(/\D/g, '');
+    return `subscriber+${normalizedDigits}@phone.boxly.local`;
+  }
+
+  private toClientEmail(email: string | null | undefined): string | null {
+    if (!email) {
+      return null;
+    }
+
+    if (email.endsWith('@phone.boxly.local')) {
+      return null;
+    }
+
+    return email;
   }
 }

@@ -19,7 +19,7 @@ export class Address {
   @Column('uuid')
   user_id: string;
 
-  @ApiProperty({ example: 'male', enum: ['male', 'female'] })
+  @ApiProperty({ example: 'other', enum: ['male', 'female', 'other'] })
   @Column({ length: 10 })
   gender: string;
 

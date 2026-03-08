@@ -1,11 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateMyAddressDto {
-  @ApiProperty({ example: 'female', enum: ['male', 'female'] })
-  @IsNotEmpty()
-  @IsIn(['male', 'female'])
-  gender: string;
+  @ApiPropertyOptional({ example: 'female', enum: ['male', 'female', 'other'] })
+  @IsOptional()
+  @IsIn(['male', 'female', 'other'])
+  gender?: string;
 
   @ApiProperty({ example: '+1234567890' })
   @IsNotEmpty()

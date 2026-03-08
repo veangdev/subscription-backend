@@ -21,7 +21,9 @@ export class AddressesService {
 
   createForUser(userId: string, dto: CreateMyAddressDto): Promise<Address> {
     const address = this.addressesRepository.create({
-      ...dto,
+      gender: dto.gender ?? 'other',
+      phone: dto.phone.trim(),
+      address: dto.address.trim(),
       user_id: userId,
     });
     return this.addressesRepository.save(address);
