@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
@@ -440,7 +441,7 @@ export class StripeService {
     const priceId = this.configService.get<string>(envKey);
 
     if (!priceId) {
-      throw new InternalServerErrorException(
+      throw new ServiceUnavailableException(
         `Stripe price mapping is missing for ${plan.name} (${this.describeBillingFrequency(
           plan.frequency_in_days,
         )}). Expected environment variable: ${envKey}`,

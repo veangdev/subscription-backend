@@ -13,28 +13,33 @@ export class SubscriptionPlansController {
   constructor(private readonly plansService: SubscriptionPlansService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new subscription plan' })
+  @ApiOperation({ summary: 'Create a new box subscription variant' })
   @ApiCreatedResponse({ description: 'Plan created successfully', type: SubscriptionPlan })
   create(@Body() dto: CreateSubscriptionPlanDto): Promise<SubscriptionPlan> {
     return this.plansService.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all subscription plans' })
+  @ApiOperation({ summary: 'Get all box subscription variants' })
   @ApiOkResponse({ description: 'List of all plans', type: [SubscriptionPlan] })
   findAll(
-    @Query('billingCycle') billingCycle?: 'monthly' | 'yearly',
+    @Query('billingCycle') billingCycle?: 'weekly' | 'monthly' | 'yearly',
   ): Promise<SubscriptionPlan[]> {
-    if (billingCycle && billingCycle !== 'monthly' && billingCycle !== 'yearly') {
-      throw new BadRequestException('billingCycle must be monthly or yearly');
+    if (
+      billingCycle &&
+      billingCycle !== 'weekly' &&
+      billingCycle !== 'monthly' &&
+      billingCycle !== 'yearly'
+    ) {
+      throw new BadRequestException('billingCycle must be weekly, monthly, or yearly');
     }
     return this.plansService.findAll(billingCycle);
   }
 
   @Get('storefront')
-  @ApiOperation({ summary: 'Get curated subscription plans for the mobile storefront' })
+  @ApiOperation({ summary: 'Get curated box plans for the mobile storefront' })
   @ApiOkResponse({
-    description: 'Curated storefront response for the package screen',
+    description: 'Curated storefront response for the mobile plans screen',
     type: SubscriptionPlanStorefrontResponseDto,
   })
   getStorefrontCatalog(): Promise<SubscriptionPlanStorefrontResponseDto> {
@@ -65,7 +70,7 @@ export class SubscriptionPlansController {
   }
 
   @Post('seed-defaults')
-  @ApiOperation({ summary: 'Seed default monthly/yearly plans' })
+  @ApiOperation({ summary: 'Seed default box plans and billing cadences' })
   @ApiOkResponse({ description: 'Seeded subscription plans', type: [SubscriptionPlan] })
   seedDefaults(): Promise<SubscriptionPlan[]> {
     return this.plansService.seedDefaultPlans();

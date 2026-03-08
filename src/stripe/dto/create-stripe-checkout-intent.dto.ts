@@ -6,7 +6,7 @@ export class CreateStripeCheckoutIntentDto {
     type: String,
     format: 'uuid',
     example: '550e8400-e29b-41d4-a716-446655440001',
-    description: 'Selected subscription plan ID',
+    description: 'Selected box subscription variant ID (box + billing cadence)',
   })
   @IsNotEmpty()
   @IsUUID()

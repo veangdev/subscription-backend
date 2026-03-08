@@ -128,3 +128,9 @@ Stripe price IDs are now resolved by box name + billing cadence:
 - `STRIPE_PRICE_GLOW_RITUAL_BOX_WEEKLY`
 - `STRIPE_PRICE_GLOW_RITUAL_BOX_MONTHLY`
 - `STRIPE_PRICE_GLOW_RITUAL_BOX_YEARLY`
+
+Name normalization rules for Stripe env keys:
+
+- spaces and punctuation become underscores
+- keys are uppercased
+- example: `Gamer's Loot` -> `STRIPE_PRICE_GAMERS_LOOT_WEEKLY`

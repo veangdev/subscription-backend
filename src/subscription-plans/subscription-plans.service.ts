@@ -10,7 +10,7 @@ import {
   SubscriptionPlanStorefrontResponseDto,
 } from './dto/subscription-plan-storefront-response.dto';
 
-type BillingCycle = 'monthly' | 'yearly';
+type BillingCycle = 'weekly' | 'monthly' | 'yearly';
 type StorefrontPreset = {
   plan_name: string;
   title: string;
@@ -140,7 +140,9 @@ export class SubscriptionPlansService {
       )
       .addOrderBy('plan.frequency_in_days', 'ASC');
 
-    if (billingCycle === 'monthly') {
+    if (billingCycle === 'weekly') {
+      query.andWhere('plan.frequency_in_days <= :weeklyDays', { weeklyDays: 7 });
+    } else if (billingCycle === 'monthly') {
       query.andWhere('plan.frequency_in_days <= :monthlyDays', { monthlyDays: 31 });
     } else if (billingCycle === 'yearly') {
       query.andWhere('plan.frequency_in_days >= :yearlyDays', { yearlyDays: 360 });

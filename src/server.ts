@@ -15,6 +15,16 @@ const SCHEMA_MIGRATION_LOCK_KEY = 1741377600;
 let nestApp: INestApplication | null = null;
 let nestReady = false;
 let bootstrapError: string | null = null;
+let bootstrapAttempts = 0;
+let bootstrapInFlight = false;
+let bootstrapRetryTimer: NodeJS.Timeout | null = null;
+
+const BOOTSTRAP_RETRY_INITIAL_DELAY_MS = Number(
+  process.env.BOOTSTRAP_RETRY_INITIAL_DELAY_MS || 3000,
+);
+const BOOTSTRAP_RETRY_MAX_DELAY_MS = Number(
+  process.env.BOOTSTRAP_RETRY_MAX_DELAY_MS || 15000,
+);
 
 const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin;
@@ -36,6 +46,7 @@ const server = http.createServer(async (req, res) => {
         environment: process.env.NODE_ENV || 'development',
         nestReady,
         bootstrapError,
+        bootstrapAttempts,
         dbTest: '/api/db-test',
         timestamp: new Date().toISOString(),
       }),
@@ -62,6 +73,7 @@ const server = http.createServer(async (req, res) => {
         error: 'Service Unavailable',
         details: {
           bootstrapError,
+          bootstrapAttempts,
           health: '/api/health',
           dbTest: '/api/db-test',
         },
@@ -80,7 +92,13 @@ server.listen(port, '0.0.0.0', () => {
 });
 
 async function bootstrapNestApp(): Promise<void> {
+  if (bootstrapInFlight || nestReady) {
+    return;
+  }
+
   try {
+    bootstrapInFlight = true;
+    bootstrapAttempts += 1;
     logger.log('Bootstrapping Nest application in background');
     bootstrapError = null;
 
@@ -120,12 +138,43 @@ async function bootstrapNestApp(): Promise<void> {
 
     nestApp = app;
     nestReady = true;
+    bootstrapAttempts = 0;
+    clearBootstrapRetryTimer();
     logger.log('Nest application initialized successfully');
   } catch (error) {
     nestReady = false;
     bootstrapError = getErrorMessage(error);
     logger.error('Nest background bootstrap failed', error as Error);
+    scheduleBootstrapRetry();
+  } finally {
+    bootstrapInFlight = false;
   }
+}
+
+function scheduleBootstrapRetry(): void {
+  if (bootstrapRetryTimer || nestReady) {
+    return;
+  }
+
+  const retryDelay = Math.min(
+    BOOTSTRAP_RETRY_INITIAL_DELAY_MS * Math.max(bootstrapAttempts, 1),
+    BOOTSTRAP_RETRY_MAX_DELAY_MS,
+  );
+
+  logger.warn(`Scheduling bootstrap retry in ${retryDelay}ms`);
+  bootstrapRetryTimer = setTimeout(() => {
+    bootstrapRetryTimer = null;
+    void bootstrapNestApp();
+  }, retryDelay);
+}
+
+function clearBootstrapRetryTimer(): void {
+  if (!bootstrapRetryTimer) {
+    return;
+  }
+
+  clearTimeout(bootstrapRetryTimer);
+  bootstrapRetryTimer = null;
 }
 
 function applyCorsHeaders(
@@ -142,6 +191,7 @@ function applyCorsHeaders(
 
 function shutdown(signal: string): void {
   logger.log(`Received ${signal}, shutting down`);
+  clearBootstrapRetryTimer();
   server.close(() => {
     if (!nestApp) {
       process.exit(0);

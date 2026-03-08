@@ -9,10 +9,10 @@ export class SubscriptionPlan {
   id: string;
 
   @Column({ length: 50 })
-  name: string; // Basic, Premium, Deluxe
+  name: string; // Example: The Wellness Box, Eco-Home Essentials
 
   @Column({ type: 'int' })
-  frequency_in_days: number; // 7, 30, 90
+  frequency_in_days: number; // Example: 7 (weekly), 30 (monthly), 365 (yearly)
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
