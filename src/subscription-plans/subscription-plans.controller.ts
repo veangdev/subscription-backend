@@ -4,6 +4,7 @@ import { SubscriptionPlansService } from './subscription-plans.service';
 import { CreateSubscriptionPlanDto } from './dto/create-subscription-plan.dto';
 import { UpdateSubscriptionPlanDto } from './dto/update-subscription-plan.dto';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
+import { SubscriptionPlanStorefrontResponseDto } from './dto/subscription-plan-storefront-response.dto';
 
 @ApiTags('Subscription Plans')
 @ApiBearerAuth()
@@ -28,6 +29,16 @@ export class SubscriptionPlansController {
       throw new BadRequestException('billingCycle must be monthly or yearly');
     }
     return this.plansService.findAll(billingCycle);
+  }
+
+  @Get('storefront')
+  @ApiOperation({ summary: 'Get curated subscription plans for the mobile storefront' })
+  @ApiOkResponse({
+    description: 'Curated storefront response for the package screen',
+    type: SubscriptionPlanStorefrontResponseDto,
+  })
+  getStorefrontCatalog(): Promise<SubscriptionPlanStorefrontResponseDto> {
+    return this.plansService.getStorefrontCatalog();
   }
 
   @Get(':id')
