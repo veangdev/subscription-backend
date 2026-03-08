@@ -87,7 +87,9 @@ export class SubscriptionsService {
       status: 'ACTIVE',
     });
 
-    return this.subscriptionsRepository.save(subscription);
+    const savedSubscription = await this.subscriptionsRepository.save(subscription);
+    await this.ensureInitialShipments([savedSubscription]);
+    return savedSubscription;
   }
 
   async buildDashboardForUser(userId: string): Promise<SubscriberDashboardResponseDto> {
@@ -99,6 +101,8 @@ export class SubscriptionsService {
       relations: ['plan', 'payments'],
       order: { end_date: 'ASC' },
     });
+
+    await this.ensureInitialShipments(activeSubscriptions);
 
     const latestShipment = await this.shipmentsRepository
       .createQueryBuilder('shipment')
@@ -255,6 +259,43 @@ export class SubscriptionsService {
         baseDate.setDate(baseDate.getDate() + 7);
         return baseDate;
     }
+  }
+
+  private async ensureInitialShipments(subscriptions: Subscription[]): Promise<void> {
+    const activeSubscriptions = subscriptions.filter(
+      (subscription) => subscription.status?.toUpperCase() === 'ACTIVE',
+    );
+
+    if (activeSubscriptions.length === 0) {
+      return;
+    }
+
+    const existingShipments = await this.shipmentsRepository.find({
+      where: {
+        subscription_id: In(activeSubscriptions.map((subscription) => subscription.id)),
+      },
+      select: ['subscription_id'],
+    });
+
+    const existingShipmentSubscriptionIds = new Set(
+      existingShipments.map((shipment) => shipment.subscription_id),
+    );
+
+    const initialShipments = activeSubscriptions
+      .filter((subscription) => !existingShipmentSubscriptionIds.has(subscription.id))
+      .map((subscription) =>
+        this.shipmentsRepository.create({
+          subscription_id: subscription.id,
+          shipment_date: subscription.start_date ?? new Date(),
+          status: 'PENDING',
+        }),
+      );
+
+    if (initialShipments.length === 0) {
+      return;
+    }
+
+    await this.shipmentsRepository.save(initialShipments);
   }
 
   private formatDateOnly(value: Date | null | undefined): string | null {
