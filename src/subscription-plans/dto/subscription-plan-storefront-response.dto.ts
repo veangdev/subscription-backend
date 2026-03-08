@@ -1,5 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class SubscriptionPlanFrequencyOptionDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  id: string;
+
+  @ApiProperty({ example: 'Monthly' })
+  label: string;
+
+  @ApiProperty({ example: 30 })
+  frequency_in_days: number;
+
+  @ApiProperty({ example: 19.0 })
+  price: number;
+
+  @ApiProperty({ example: '/mo' })
+  period_label: string;
+}
+
 export class SubscriptionPlanStorefrontItemDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id: string;
@@ -23,6 +40,9 @@ export class SubscriptionPlanStorefrontItemDto {
 
   @ApiProperty({ example: '/mo' })
   period_label: string;
+
+  @ApiProperty({ type: [SubscriptionPlanFrequencyOptionDto] })
+  frequency_options: SubscriptionPlanFrequencyOptionDto[];
 
   @ApiProperty({
     type: [String],
