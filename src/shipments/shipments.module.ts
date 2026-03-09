@@ -4,9 +4,10 @@ import { Address } from '../addresses/entities/address.entity';
 import { ShipmentsService } from './shipments.service';
 import { ShipmentsController } from './shipments.controller';
 import { Shipment } from './entities/shipment.entity';
+import { AccessControlModule } from '../access-control/access-control.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Shipment, Address])],
+  imports: [AccessControlModule, TypeOrmModule.forFeature([Shipment, Address])],
   controllers: [ShipmentsController],
   providers: [ShipmentsService],
   exports: [ShipmentsService],

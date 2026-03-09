@@ -6,9 +6,13 @@ import { Subscription } from './entities/subscription.entity';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
+import { AccessControlModule } from '../access-control/access-control.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Subscription, SubscriptionPlan, Payment, Shipment])],
+  imports: [
+    AccessControlModule,
+    TypeOrmModule.forFeature([Subscription, SubscriptionPlan, Payment, Shipment]),
+  ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],
   exports: [SubscriptionsService],

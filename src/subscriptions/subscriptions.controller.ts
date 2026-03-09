@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -7,6 +7,7 @@ import { Subscription } from './entities/subscription.entity';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { SubscriberDashboardResponseDto } from './dto/subscriber-dashboard-response.dto';
+import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
@@ -15,6 +16,7 @@ export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
   @Post()
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Create a new subscription' })
   @ApiCreatedResponse({ description: 'Subscription created successfully', type: Subscription })
   create(@Body() dto: CreateSubscriptionDto): Promise<Subscription> {
@@ -22,6 +24,7 @@ export class SubscriptionsController {
   }
 
   @Get()
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Get all subscriptions' })
   @ApiOkResponse({ description: 'List of all subscriptions', type: [Subscription] })
   findAll(): Promise<Subscription[]> {
@@ -58,6 +61,7 @@ export class SubscriptionsController {
   }
 
   @Get(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Get a subscription by ID' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Subscription found', type: Subscription })
@@ -66,6 +70,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Update a subscription' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Subscription updated', type: Subscription })
@@ -74,6 +79,7 @@ export class SubscriptionsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Delete a subscription' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

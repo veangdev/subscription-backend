@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ShipmentsService } from './shipments.service';
@@ -9,6 +9,7 @@ import {
   SubscriberShipmentHistoryItemDto,
 } from './dto/subscriber-shipment-history-response.dto';
 import { Shipment } from './entities/shipment.entity';
+import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
 
 @ApiTags('Shipments')
 @ApiBearerAuth()
@@ -17,6 +18,7 @@ export class ShipmentsController {
   constructor(private readonly shipmentsService: ShipmentsService) {}
 
   @Post()
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Create a new shipment' })
   @ApiCreatedResponse({ description: 'Shipment created successfully', type: Shipment })
   create(@Body() dto: CreateShipmentDto): Promise<Shipment> {
@@ -24,6 +26,7 @@ export class ShipmentsController {
   }
 
   @Get()
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Get all shipments' })
   @ApiOkResponse({ description: 'List of all shipments', type: [Shipment] })
   findAll(): Promise<Shipment[]> {
@@ -55,6 +58,7 @@ export class ShipmentsController {
   }
 
   @Get(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Get a shipment by ID' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Shipment found', type: Shipment })
@@ -63,6 +67,7 @@ export class ShipmentsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Update a shipment' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Shipment updated', type: Shipment })
@@ -71,6 +76,7 @@ export class ShipmentsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminAccessGuard)
   @ApiOperation({ summary: 'Delete a shipment' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

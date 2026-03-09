@@ -26,7 +26,15 @@ export class ShipmentsService {
   }
 
   findAll(): Promise<Shipment[]> {
-    return this.shipmentsRepository.find({ relations: ['subscription'] });
+    return this.shipmentsRepository.find({
+      relations: {
+        subscription: {
+          user: true,
+          plan: true,
+        },
+      },
+      order: { shipment_date: 'DESC' },
+    });
   }
 
   async findHistoryByUser(userId: string): Promise<SubscriberShipmentHistoryItemDto[]> {
@@ -73,7 +81,12 @@ export class ShipmentsService {
   async findOne(id: string): Promise<Shipment> {
     const shipment = await this.shipmentsRepository.findOne({
       where: { id },
-      relations: ['subscription'],
+      relations: {
+        subscription: {
+          user: true,
+          plan: true,
+        },
+      },
     });
     if (!shipment) throw new NotFoundException(`Shipment #${id} not found`);
     return shipment;
