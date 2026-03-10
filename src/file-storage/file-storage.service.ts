@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
 import * as fs from 'fs/promises';
@@ -18,6 +18,7 @@ type StoredImage = {
 
 @Injectable()
 export class FileStorageService {
+  private readonly logger = new Logger(FileStorageService.name);
   private readonly storageDriver: 'local' | 'gcs';
   private readonly localRoot: string;
   private readonly apiPublicBaseUrl: string;
@@ -129,13 +130,21 @@ export class FileStorageService {
     const bucket = this.storageClient.bucket(this.gcsBucketName);
     const file = bucket.file(storagePath);
 
-    await file.save(input.buffer, {
-      resumable: false,
-      metadata: {
-        contentType: input.mimeType,
-        cacheControl: 'public, max-age=31536000, immutable',
-      },
-    });
+    try {
+      await file.save(input.buffer, {
+        resumable: false,
+        metadata: {
+          contentType: input.mimeType,
+          cacheControl: 'public, max-age=31536000, immutable',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to upload image to GCS bucket "${this.gcsBucketName}" at "${storagePath}"`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new InternalServerErrorException('Failed to upload image to storage');
+    }
 
     return {
       storagePath,

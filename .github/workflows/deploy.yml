@@ -69,6 +69,12 @@ jobs:
             --condition=None \
             --quiet || true
 
+          echo "Granting Storage Object Admin role on images bucket..."
+          gcloud storage buckets add-iam-policy-binding gs://box-subscription-system-images \
+            --member="serviceAccount:${{ steps.runtime_sa.outputs.email }}" \
+            --role="roles/storage.objectAdmin" \
+            --quiet || true
+
       # Let Docker push to Artifact Registry
       - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
