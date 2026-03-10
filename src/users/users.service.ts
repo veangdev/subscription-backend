@@ -252,6 +252,7 @@ export class UsersService {
       phone_number: user.phone_number,
       role: user.role,
       status: user.status ?? 'Active',
+      profile_image_url: user.profile_image_url,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };

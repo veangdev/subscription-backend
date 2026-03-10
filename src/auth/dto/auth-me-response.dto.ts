@@ -27,6 +27,13 @@ export class AuthMeResponseDto {
   @ApiProperty({ example: 'Active' })
   status: string;
 
+  @ApiPropertyOptional({
+    example: 'https://storage.googleapis.com/box-images/users/user-id/profile/avatar.jpg',
+    required: false,
+    nullable: true,
+  })
+  profile_image_url: string | null;
+
   @ApiProperty({ example: '2026-03-08T08:15:30.000Z' })
   created_at: string;
 }

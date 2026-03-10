@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
@@ -9,6 +9,7 @@ import {
   SubscriptionPlanStorefrontItemDto,
   SubscriptionPlanStorefrontResponseDto,
 } from './dto/subscription-plan-storefront-response.dto';
+import { FileStorageService } from '../file-storage/file-storage.service';
 
 type BillingCycle = 'weekly' | 'monthly' | 'yearly';
 type StorefrontPreset = {
@@ -118,6 +119,7 @@ export class SubscriptionPlansService {
   constructor(
     @InjectRepository(SubscriptionPlan)
     private readonly plansRepository: Repository<SubscriptionPlan>,
+    private readonly fileStorageService: FileStorageService,
   ) {}
 
   create(dto: CreateSubscriptionPlanDto): Promise<SubscriptionPlan> {
@@ -196,6 +198,25 @@ export class SubscriptionPlansService {
     return this.findOne(id);
   }
 
+  async uploadImage(id: string, file: Express.Multer.File): Promise<SubscriptionPlan> {
+    this.assertImageFile(file);
+
+    const plan = await this.findOne(id);
+    const uploadedImage = await this.fileStorageService.storeImage({
+      folder: `plans/${plan.id}`,
+      originalFilename: file.originalname,
+      mimeType: file.mimetype,
+      buffer: file.buffer,
+    });
+
+    if (plan.image_url) {
+      await this.fileStorageService.deleteByPublicUrl(plan.image_url);
+    }
+
+    plan.image_url = uploadedImage.publicUrl;
+    return this.plansRepository.save(plan);
+  }
+
   async remove(id: string): Promise<void> {
     await this.findOne(id);
     await this.plansRepository.delete(id);
@@ -238,6 +259,7 @@ export class SubscriptionPlansService {
       subtitle: preset.subtitle,
       category: preset.category,
       price: Number(representativePlan.price),
+      image_url: representativePlan.image_url ?? null,
       period_label: this.resolvePeriodLabel(representativePlan.frequency_in_days),
       frequency_options: plans.map((plan) => this.buildFrequencyOption(plan)),
       features: preset.features,
@@ -309,5 +331,11 @@ export class SubscriptionPlansService {
       return '/wk';
     }
     return '/mo';
+  }
+
+  private assertImageFile(file: Express.Multer.File): void {
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image uploads are allowed');
+    }
   }
 }

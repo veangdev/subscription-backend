@@ -9,10 +9,12 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { FileStorageModule } from '../file-storage/file-storage.module';
 
 @Module({
   imports: [
     PassportModule,
+    FileStorageModule,
     // Configure JWT from .env
     JwtModule.registerAsync({
       inject: [ConfigService],

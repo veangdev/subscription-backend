@@ -15,11 +15,15 @@ import { Coupon } from '../coupons/entities/coupon.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { Report } from '../reports/entities/report.entity';
 import { AddRbacAndUserStatus1741377600000 } from '../database/migrations/1741377600000-add-rbac-and-user-status';
+import { AddImageColumns1741670400000 } from '../database/migrations/1741670400000-add-image-columns';
 import * as path from 'path';
 
 loadLocalEnvFile();
 
-const migrations = [AddRbacAndUserStatus1741377600000];
+const migrations = [
+  AddRbacAndUserStatus1741377600000,
+  AddImageColumns1741670400000,
+];
 
 export const databaseConfigFactory = (
   config: ConfigService,

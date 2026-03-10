@@ -2,6 +2,9 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './config/cors.config';
@@ -16,7 +19,7 @@ async function bootstrap(): Promise<void> {
   logger.log(`PORT: ${process.env.PORT || DEFAULT_PORT}`);
   
   logger.log('Creating Nest application...');
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log'],
     abortOnError: false, // Continue even if modules fail to initialize
   });
@@ -24,6 +27,7 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix(API_PREFIX);
 
+  configureStaticUploads(app);
   configureCors(app);
   configureValidation(app);
   configureSwagger(app);
@@ -36,6 +40,22 @@ async function bootstrap(): Promise<void> {
   logger.log(`✅ HTTP SERVER LISTENING ON PORT ${port}`);
   logger.log(`✅ Health endpoint: http://0.0.0.0:${port}/api/health`);
   logger.log(`✅ API Documentation available at /${API_PREFIX}/docs`);
+}
+
+function configureStaticUploads(app: NestExpressApplication): void {
+  const storageDriver = (process.env.FILE_STORAGE_DRIVER || 'local').trim().toLowerCase();
+  if (storageDriver !== 'local') {
+    return;
+  }
+
+  const uploadRoot = path.resolve(
+    process.cwd(),
+    process.env.FILE_STORAGE_LOCAL_DIR || 'uploads',
+  );
+  fs.mkdirSync(uploadRoot, { recursive: true });
+  app.useStaticAssets(uploadRoot, {
+    prefix: `/${API_PREFIX}/uploads/`,
+  });
 }
 
 function configureCors(app: INestApplication): void {

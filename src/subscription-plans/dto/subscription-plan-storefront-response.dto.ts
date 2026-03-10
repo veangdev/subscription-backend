@@ -38,6 +38,13 @@ export class SubscriptionPlanStorefrontItemDto {
   @ApiProperty({ example: 19.0 })
   price: number;
 
+  @ApiProperty({
+    example: 'https://storage.googleapis.com/box-images/plans/plan-id/cover.jpg',
+    required: false,
+    nullable: true,
+  })
+  image_url: string | null;
+
   @ApiProperty({ example: '/mo' })
   period_label: string;
 

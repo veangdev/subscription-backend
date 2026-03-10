@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Entity('subscription_plans')
@@ -16,6 +16,13 @@ export class SubscriptionPlan {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
+
+  @ApiPropertyOptional({
+    example: 'https://storage.googleapis.com/box-images/plans/plan-id/cover.jpg',
+    nullable: true,
+  })
+  @Column({ type: 'text', nullable: true })
+  image_url: string | null;
 
   // Relations
   @OneToMany(() => Subscription, (subscription) => subscription.plan)

@@ -21,7 +21,8 @@
     "seed:admin": "NODE_ENV=production ts-node -r tsconfig-paths/register src/database/seeders/admin.seeder.ts"
   },
   "dependencies": {
-"@nestjs/common": "^11.0.1",
+    "@google-cloud/storage": "^7.17.2",
+    "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",

@@ -1,5 +1,16 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AuthService } from './auth.service';
 import { AuthMeResponseDto } from './dto/auth-me-response.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -36,5 +47,27 @@ export class AuthController {
   @ApiOkResponse({ description: 'Current user info', type: AuthMeResponseDto })
   getMe(@CurrentUser() user: { id: string; email: string }) {
     return this.authService.getCurrentUser(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  @ApiBearerAuth()
+  @Post('me/profile-image')
+  @ApiOperation({ summary: 'Upload or replace the current user profile image' })
+  @ApiOkResponse({ description: 'Current user info with updated image', type: AuthMeResponseDto })
+  uploadProfileImage(
+    @CurrentUser() user: { id: string; email: string },
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    return this.authService.uploadProfileImage(user.id, file);
   }
 }

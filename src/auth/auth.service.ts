@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { AuthMeResponseDto } from './dto/auth-me-response.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { FileStorageService } from '../file-storage/file-storage.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly fileStorageService: FileStorageService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -83,8 +85,35 @@ export class AuthService {
       phone_number: user.phone_number,
       role: user.role,
       status: user.status ?? 'Active',
+      profile_image_url: user.profile_image_url ?? null,
       created_at: user.created_at.toISOString(),
     };
+  }
+
+  async uploadProfileImage(userId: string, file: Express.Multer.File): Promise<AuthMeResponseDto> {
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image uploads are allowed');
+    }
+
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const uploadedImage = await this.fileStorageService.storeImage({
+      folder: `users/${user.id}/profile`,
+      originalFilename: file.originalname,
+      mimeType: file.mimetype,
+      buffer: file.buffer,
+    });
+
+    if (user.profile_image_url) {
+      await this.fileStorageService.deleteByPublicUrl(user.profile_image_url);
+    }
+
+    user.profile_image_url = uploadedImage.publicUrl;
+    await this.usersRepository.save(user);
+    return this.getCurrentUser(user.id);
   }
 
   private buildAuthResponse(user: User) {
@@ -99,6 +128,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
         status: user.status ?? 'Active',
+        profile_image_url: user.profile_image_url ?? null,
       },
     };
   }

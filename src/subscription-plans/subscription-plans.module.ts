@@ -4,9 +4,14 @@ import { SubscriptionPlansService } from './subscription-plans.service';
 import { SubscriptionPlansController } from './subscription-plans.controller';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import { AccessControlModule } from '../access-control/access-control.module';
+import { FileStorageModule } from '../file-storage/file-storage.module';
 
 @Module({
-  imports: [AccessControlModule, TypeOrmModule.forFeature([SubscriptionPlan])],
+  imports: [
+    AccessControlModule,
+    FileStorageModule,
+    TypeOrmModule.forFeature([SubscriptionPlan]),
+  ],
   controllers: [SubscriptionPlansController],
   providers: [SubscriptionPlansService],
   exports: [SubscriptionPlansService],

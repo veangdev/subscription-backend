@@ -42,6 +42,13 @@ export class User {
   @Column({ length: 20, default: 'Active' })
   status: string;
 
+  @ApiPropertyOptional({
+    example: 'https://storage.googleapis.com/box-images/users/user-id/profile/avatar.jpg',
+    nullable: true,
+  })
+  @Column({ type: 'text', nullable: true })
+  profile_image_url: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 
