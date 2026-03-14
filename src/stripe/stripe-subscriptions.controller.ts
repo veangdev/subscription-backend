@@ -3,6 +3,7 @@ import {
   ConflictException,
   Controller,
   InternalServerErrorException,
+  Logger,
   Post,
   Body,
 } from '@nestjs/common';
@@ -27,6 +28,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 @ApiBearerAuth()
 @Controller('stripe/subscriptions')
 export class StripeSubscriptionsController {
+  private readonly logger = new Logger(StripeSubscriptionsController.name);
+
   constructor(
     private readonly stripeService: StripeService,
     private readonly subscriptionsService: SubscriptionsService,
@@ -150,12 +153,16 @@ export class StripeSubscriptionsController {
       subscribeDto,
     );
 
-    // Send push notification for successful order
-    await this.notificationsService.sendOrderSuccessNotification(
-      user.id,
-      plan.name,
-      Number(plan.price),
-    );
+    // Notifications must not block a successful payment confirmation.
+    void this.notificationsService
+      .sendOrderSuccessNotification(user.id, plan.name, Number(plan.price))
+      .catch((error) => {
+        this.logger.warn(
+          `Order success notification failed for user ${user.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
 
     return subscription;
   }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -15,25 +16,22 @@ export type StripeCheckoutClientSecrets = {
 
 @Injectable()
 export class StripeService {
-  private stripe: Stripe;
+  private stripe: Stripe | null = null;
   private readonly logger = new Logger(StripeService.name);
 
   constructor(private configService: ConfigService) {
-    const secretKey =
-      this.configService.get<string>('STRIPE_SECRET_KEY') || 'sk_test_placeholder';
+    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
 
-    if (!this.configService.get<string>('STRIPE_SECRET_KEY')) {
+    if (!secretKey) {
       this.logger.warn(
         'STRIPE_SECRET_KEY is not configured. Stripe endpoints will fail until the secret is provided.',
       );
+      return;
     }
 
-    this.stripe = new Stripe(
-      secretKey,
-      {
-        apiVersion: '2025-12-15.clover',
-      },
-    );
+    this.stripe = new Stripe(secretKey, {
+      apiVersion: '2025-12-15.clover',
+    });
   }
 
   getPublishableKey(): string {
@@ -56,27 +54,30 @@ export class StripeService {
    * Create a Stripe customer
    */
   async createCustomer(email: string, name: string): Promise<Stripe.Customer> {
-    try {
-      const customer = await this.stripe.customers.create({
-        email,
-        name,
-      });
-      this.logger.log(`Created Stripe customer: ${customer.id}`);
-      return customer;
-    } catch (error) {
-      this.logger.error('Error creating Stripe customer', error);
-      throw error;
-    }
+    const customer = await this.executeStripeRequest(
+      'create a Stripe customer',
+      (stripe) =>
+        stripe.customers.create({
+          email,
+          name,
+        }),
+    );
+    this.logger.log(`Created Stripe customer: ${customer.id}`);
+    return customer;
   }
 
   async findOrCreateCustomer(
     email: string,
     name: string,
   ): Promise<Stripe.Customer> {
-    const customers = await this.stripe.customers.list({
-      email,
-      limit: 1,
-    });
+    const customers = await this.executeStripeRequest(
+      'find an existing Stripe customer',
+      (stripe) =>
+        stripe.customers.list({
+          email,
+          limit: 1,
+        }),
+    );
 
     const existing = customers.data[0];
     if (existing) {
@@ -100,14 +101,18 @@ export class StripeService {
     customerId: string,
     data: Stripe.CustomerUpdateParams,
   ): Promise<Stripe.Customer> {
-    return await this.stripe.customers.update(customerId, data);
+    return this.executeStripeRequest('update a Stripe customer', (stripe) =>
+      stripe.customers.update(customerId, data),
+    );
   }
 
   /**
    * Delete customer
    */
   async deleteCustomer(customerId: string): Promise<Stripe.DeletedCustomer> {
-    return await this.stripe.customers.del(customerId);
+    return this.executeStripeRequest('delete a Stripe customer', (stripe) =>
+      stripe.customers.del(customerId),
+    );
   }
 
   // ============================================
@@ -121,17 +126,23 @@ export class StripeService {
     paymentMethodId: string,
     customerId: string,
   ): Promise<Stripe.PaymentMethod> {
-    const paymentMethod = await this.stripe.paymentMethods.attach(
-      paymentMethodId,
-      { customer: customerId },
+    const paymentMethod = await this.executeStripeRequest(
+      'attach a payment method to a Stripe customer',
+      (stripe) =>
+        stripe.paymentMethods.attach(paymentMethodId, {
+          customer: customerId,
+        }),
     );
 
-    // Set as default payment method
-    await this.stripe.customers.update(customerId, {
-      invoice_settings: {
-        default_payment_method: paymentMethodId,
-      },
-    });
+    await this.executeStripeRequest(
+      'update Stripe customer default payment method',
+      (stripe) =>
+        stripe.customers.update(customerId, {
+          invoice_settings: {
+            default_payment_method: paymentMethodId,
+          },
+        }),
+    );
 
     return paymentMethod;
   }
@@ -140,17 +151,23 @@ export class StripeService {
    * Get customer payment methods
    */
   async getPaymentMethods(customerId: string): Promise<Stripe.PaymentMethod[]> {
-    const paymentMethods = await this.stripe.paymentMethods.list({
-      customer: customerId,
-      type: 'card',
-    });
+    const paymentMethods = await this.executeStripeRequest(
+      'list Stripe payment methods',
+      (stripe) =>
+        stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        }),
+    );
     return paymentMethods.data;
   }
 
   async createEphemeralKey(customerId: string): Promise<Stripe.EphemeralKey> {
-    return this.stripe.ephemeralKeys.create(
-      { customer: customerId },
-      { apiVersion: '2025-12-15.clover' },
+    return this.executeStripeRequest('create a Stripe ephemeral key', (stripe) =>
+      stripe.ephemeralKeys.create(
+        { customer: customerId },
+        { apiVersion: '2025-12-15.clover' },
+      ),
     );
   }
 
@@ -160,7 +177,9 @@ export class StripeService {
   async detachPaymentMethod(
     paymentMethodId: string,
   ): Promise<Stripe.PaymentMethod> {
-    return await this.stripe.paymentMethods.detach(paymentMethodId);
+    return this.executeStripeRequest('detach a Stripe payment method', (stripe) =>
+      stripe.paymentMethods.detach(paymentMethodId),
+    );
   }
 
   // ============================================
@@ -174,10 +193,12 @@ export class StripeService {
     name: string,
     description: string,
   ): Promise<Stripe.Product> {
-    return await this.stripe.products.create({
-      name,
-      description,
-    });
+    return this.executeStripeRequest('create a Stripe product', (stripe) =>
+      stripe.products.create({
+        name,
+        description,
+      }),
+    );
   }
 
   /**
@@ -189,15 +210,17 @@ export class StripeService {
     interval: 'day' | 'week' | 'month' | 'year',
     intervalCount: number = 1,
   ): Promise<Stripe.Price> {
-    return await this.stripe.prices.create({
-      product: productId,
-      unit_amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      recurring: {
-        interval,
-        interval_count: intervalCount,
-      },
-    });
+    return this.executeStripeRequest('create a Stripe price', (stripe) =>
+      stripe.prices.create({
+        product: productId,
+        unit_amount: Math.round(amount * 100),
+        currency: 'usd',
+        recurring: {
+          interval,
+          interval_count: intervalCount,
+        },
+      }),
+    );
   }
 
   // ============================================
@@ -211,28 +234,27 @@ export class StripeService {
     customerId: string,
     priceId: string,
   ): Promise<Stripe.Subscription> {
-    try {
-      const subscription = await this.stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: priceId }],
-        payment_behavior: 'default_incomplete',
-        payment_settings: {
-          payment_method_types: ['card'],
-          save_default_payment_method: 'on_subscription',
-        },
-        expand: [
-          'latest_invoice.payment_intent',
-          'latest_invoice.confirmation_secret',
-          'pending_setup_intent',
-        ],
-      });
+    const subscription = await this.executeStripeRequest(
+      'create a Stripe subscription',
+      (stripe) =>
+        stripe.subscriptions.create({
+          customer: customerId,
+          items: [{ price: priceId }],
+          payment_behavior: 'default_incomplete',
+          payment_settings: {
+            payment_method_types: ['card'],
+            save_default_payment_method: 'on_subscription',
+          },
+          expand: [
+            'latest_invoice.payment_intent',
+            'latest_invoice.confirmation_secret',
+            'pending_setup_intent',
+          ],
+        }),
+    );
 
-      this.logger.log(`Created subscription: ${subscription.id}`);
-      return subscription;
-    } catch (error) {
-      this.logger.error('Error creating subscription', error);
-      throw error;
-    }
+    this.logger.log(`Created subscription: ${subscription.id}`);
+    return subscription;
   }
 
   extractPaymentIntentFromSubscription(
@@ -281,8 +303,10 @@ export class StripeService {
     const pendingSetupIntent = subscription.pending_setup_intent;
     if (pendingSetupIntent) {
       if (typeof pendingSetupIntent === 'string') {
-        const resolvedSetupIntent =
-          await this.stripe.setupIntents.retrieve(pendingSetupIntent);
+        const resolvedSetupIntent = await this.executeStripeRequest(
+          'retrieve a Stripe setup intent',
+          (stripe) => stripe.setupIntents.retrieve(pendingSetupIntent),
+        );
         setupIntentClientSecret = resolvedSetupIntent.client_secret ?? null;
       } else {
         setupIntentClientSecret = pendingSetupIntent.client_secret ?? null;
@@ -315,8 +339,10 @@ export class StripeService {
     const paymentIntent = invoiceWithPaymentIntent.payment_intent;
     if (paymentIntent) {
       if (typeof paymentIntent === 'string') {
-        const resolvedPaymentIntent =
-          await this.stripe.paymentIntents.retrieve(paymentIntent);
+        const resolvedPaymentIntent = await this.executeStripeRequest(
+          'retrieve a Stripe payment intent',
+          (stripe) => stripe.paymentIntents.retrieve(paymentIntent),
+        );
         if (resolvedPaymentIntent.client_secret) {
           return resolvedPaymentIntent.client_secret;
         }
@@ -337,9 +363,13 @@ export class StripeService {
   private async resolveInvoicePaymentSecret(
     invoiceId: string,
   ): Promise<string | null> {
-    const retrievedInvoice = await this.stripe.invoices.retrieve(invoiceId, {
-      expand: ['payment_intent', 'confirmation_secret'],
-    });
+    const retrievedInvoice = await this.executeStripeRequest(
+      'retrieve a Stripe invoice',
+      (stripe) =>
+        stripe.invoices.retrieve(invoiceId, {
+          expand: ['payment_intent', 'confirmation_secret'],
+        }),
+    );
     let paymentIntentClientSecret =
       await this.extractPaymentIntentClientSecretFromInvoice(
         retrievedInvoice as Stripe.Invoice,
@@ -352,12 +382,16 @@ export class StripeService {
     // the payment object that PaymentSheet needs.
     const invoiceStatus = (retrievedInvoice as Stripe.Invoice).status;
     if (invoiceStatus === 'draft') {
-      const finalizedInvoice = await this.stripe.invoices.finalizeInvoice(
-        invoiceId,
-        {
-          auto_advance: true,
-          expand: ['payment_intent', 'confirmation_secret'],
-        } as Stripe.InvoiceFinalizeInvoiceParams,
+      const finalizedInvoice = await this.executeStripeRequest(
+        'finalize a Stripe invoice',
+        (stripe) =>
+          stripe.invoices.finalizeInvoice(
+            invoiceId,
+            {
+              auto_advance: true,
+              expand: ['payment_intent', 'confirmation_secret'],
+            } as Stripe.InvoiceFinalizeInvoiceParams,
+          ),
       );
       paymentIntentClientSecret =
         await this.extractPaymentIntentClientSecretFromInvoice(
@@ -373,15 +407,16 @@ export class StripeService {
     retries: number = 2,
   ): Promise<StripeCheckoutClientSecrets> {
     for (let attempt = 0; attempt <= retries; attempt++) {
-      const subscription = await this.stripe.subscriptions.retrieve(
-        subscriptionId,
-        {
-          expand: [
-            'latest_invoice.payment_intent',
-            'latest_invoice.confirmation_secret',
-            'pending_setup_intent',
-          ],
-        },
+      const subscription = await this.executeStripeRequest(
+        'retrieve a Stripe subscription',
+        (stripe) =>
+          stripe.subscriptions.retrieve(subscriptionId, {
+            expand: [
+              'latest_invoice.payment_intent',
+              'latest_invoice.confirmation_secret',
+              'pending_setup_intent',
+            ],
+          }),
       );
 
       const secrets = await this.extractCheckoutClientSecrets(subscription);
@@ -427,7 +462,9 @@ export class StripeService {
    * Get subscription
    */
   async getSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
-    return await this.stripe.subscriptions.retrieve(subscriptionId);
+    return this.executeStripeRequest('retrieve a Stripe subscription', (stripe) =>
+      stripe.subscriptions.retrieve(subscriptionId),
+    );
   }
 
   resolvePriceIdForPlan(plan: SubscriptionPlan): string {
@@ -498,18 +535,22 @@ export class StripeService {
     subscriptionId: string,
     newPriceId: string,
   ): Promise<Stripe.Subscription> {
-    const subscription =
-      await this.stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await this.executeStripeRequest(
+      'retrieve a Stripe subscription',
+      (stripe) => stripe.subscriptions.retrieve(subscriptionId),
+    );
 
-    return await this.stripe.subscriptions.update(subscriptionId, {
-      items: [
-        {
-          id: subscription.items.data[0].id,
-          price: newPriceId,
-        },
-      ],
-      proration_behavior: 'always_invoice',
-    });
+    return this.executeStripeRequest('update a Stripe subscription', (stripe) =>
+      stripe.subscriptions.update(subscriptionId, {
+        items: [
+          {
+            id: subscription.items.data[0].id,
+            price: newPriceId,
+          },
+        ],
+        proration_behavior: 'always_invoice',
+      }),
+    );
   }
 
   /**
@@ -518,11 +559,13 @@ export class StripeService {
   async pauseSubscription(
     subscriptionId: string,
   ): Promise<Stripe.Subscription> {
-    return await this.stripe.subscriptions.update(subscriptionId, {
-      pause_collection: {
-        behavior: 'keep_as_draft',
-      },
-    });
+    return this.executeStripeRequest('pause a Stripe subscription', (stripe) =>
+      stripe.subscriptions.update(subscriptionId, {
+        pause_collection: {
+          behavior: 'keep_as_draft',
+        },
+      }),
+    );
   }
 
   /**
@@ -531,9 +574,11 @@ export class StripeService {
   async resumeSubscription(
     subscriptionId: string,
   ): Promise<Stripe.Subscription> {
-    return await this.stripe.subscriptions.update(subscriptionId, {
-      pause_collection: null,
-    });
+    return this.executeStripeRequest('resume a Stripe subscription', (stripe) =>
+      stripe.subscriptions.update(subscriptionId, {
+        pause_collection: null,
+      }),
+    );
   }
 
   /**
@@ -544,12 +589,19 @@ export class StripeService {
     immediately: boolean = false,
   ): Promise<Stripe.Subscription> {
     if (immediately) {
-      return await this.stripe.subscriptions.cancel(subscriptionId);
+      return this.executeStripeRequest(
+        'cancel a Stripe subscription immediately',
+        (stripe) => stripe.subscriptions.cancel(subscriptionId),
+      );
     } else {
       // Cancel at end of billing period
-      return await this.stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: true,
-      });
+      return this.executeStripeRequest(
+        'schedule Stripe subscription cancellation',
+        (stripe) =>
+          stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: true,
+          }),
+      );
     }
   }
 
@@ -565,15 +617,17 @@ export class StripeService {
     customerId: string,
     description?: string,
   ): Promise<Stripe.PaymentIntent> {
-    return await this.stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'usd',
-      customer: customerId,
-      description,
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
+    return this.executeStripeRequest('create a Stripe payment intent', (stripe) =>
+      stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: 'usd',
+        customer: customerId,
+        description,
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      }),
+    );
   }
 
   /**
@@ -582,7 +636,9 @@ export class StripeService {
   async confirmPaymentIntent(
     paymentIntentId: string,
   ): Promise<Stripe.PaymentIntent> {
-    return await this.stripe.paymentIntents.confirm(paymentIntentId);
+    return this.executeStripeRequest('confirm a Stripe payment intent', (stripe) =>
+      stripe.paymentIntents.confirm(paymentIntentId),
+    );
   }
 
   // ============================================
@@ -593,10 +649,14 @@ export class StripeService {
    * Get customer invoices
    */
   async getInvoices(customerId: string): Promise<Stripe.Invoice[]> {
-    const invoices = await this.stripe.invoices.list({
-      customer: customerId,
-      limit: 100,
-    });
+    const invoices = await this.executeStripeRequest(
+      'list Stripe invoices',
+      (stripe) =>
+        stripe.invoices.list({
+          customer: customerId,
+          limit: 100,
+        }),
+    );
     return invoices.data;
   }
 
@@ -646,6 +706,98 @@ export class StripeService {
       refundData.amount = Math.round(amount * 100);
     }
 
-    return await this.stripe.refunds.create(refundData);
+    return this.executeStripeRequest('create a Stripe refund', (stripe) =>
+      stripe.refunds.create(refundData),
+    );
+  }
+
+  private getStripeClient(): Stripe {
+    if (!this.stripe) {
+      throw new ServiceUnavailableException(
+        'STRIPE_SECRET_KEY is not configured',
+      );
+    }
+
+    return this.stripe;
+  }
+
+  private async executeStripeRequest<T>(
+    action: string,
+    request: (stripe: Stripe) => Promise<T>,
+  ): Promise<T> {
+    const stripe = this.getStripeClient();
+
+    try {
+      return await request(stripe);
+    } catch (error) {
+      this.logger.error(
+        `Failed to ${action}: ${this.getStripeErrorMessage(error)}`,
+      );
+      throw this.mapStripeError(error);
+    }
+  }
+
+  private mapStripeError(error: unknown): Error {
+    const message = this.getStripeErrorMessage(error);
+    const type = this.getStripeErrorType(error);
+    const normalizedMessage = message.toLowerCase();
+
+    if (type === 'StripeAuthenticationError') {
+      return new ServiceUnavailableException(
+        'Stripe secret key is invalid or missing',
+      );
+    }
+
+    if (
+      type === 'StripeConnectionError' ||
+      type === 'StripeRateLimitError' ||
+      type === 'StripeAPIError'
+    ) {
+      return new ServiceUnavailableException(
+        'Stripe is temporarily unavailable. Please try again.',
+      );
+    }
+
+    if (normalizedMessage.includes('no such price')) {
+      return new ServiceUnavailableException(
+        'Stripe price mapping is invalid for this plan. Check the configured Stripe price ID.',
+      );
+    }
+
+    if (type === 'StripeCardError' || type === 'StripeInvalidRequestError') {
+      return new BadRequestException(message);
+    }
+
+    return new InternalServerErrorException(message || 'Stripe request failed');
+  }
+
+  private getStripeErrorMessage(error: unknown): string {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof error.message === 'string'
+    ) {
+      return error.message;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Stripe request failed';
+  }
+
+  private getStripeErrorType(error: unknown): string | null {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'type' in error &&
+      typeof error.type === 'string'
+    ) {
+      return error.type;
+    }
+
+    return null;
   }
 }
