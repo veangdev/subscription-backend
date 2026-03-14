@@ -45,6 +45,13 @@ lerna-debug.log*
 .env.production.local
 .env.production
 
+# Firebase service account (contains secrets - never commit!)
+*firebase-adminsdk*.json
+firebase-service-account.json
+
+# TypeORM data source (may contain credentials)
+data-source.ts
+
 # Temp files
 .temp
 .tmp

@@ -21,6 +21,7 @@ import { ConfirmStripeSubscriptionDto } from './dto/confirm-stripe-subscription.
 import { CreateStripeCheckoutIntentDto } from './dto/create-stripe-checkout-intent.dto';
 import { StripeCheckoutIntentResponseDto } from './dto/stripe-checkout-intent-response.dto';
 import { StripeService } from './stripe.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @ApiTags('Stripe')
 @ApiBearerAuth()
@@ -30,6 +31,7 @@ export class StripeSubscriptionsController {
     private readonly stripeService: StripeService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly plansService: SubscriptionPlansService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   @Post('checkout-intent')
@@ -143,9 +145,18 @@ export class StripeSubscriptionsController {
     }
 
     const subscribeDto: SubscribeDto = { plan_id: dto.plan_id };
-    return this.subscriptionsService.subscribeForCurrentUser(
+    const subscription = await this.subscriptionsService.subscribeForCurrentUser(
       user.id,
       subscribeDto,
     );
+
+    // Send push notification for successful order
+    await this.notificationsService.sendOrderSuccessNotification(
+      user.id,
+      plan.name,
+      Number(plan.price),
+    );
+
+    return subscription;
   }
 }

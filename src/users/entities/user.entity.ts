@@ -49,6 +49,14 @@ export class User {
   @Column({ type: 'text', nullable: true })
   profile_image_url: string | null;
 
+  @ApiPropertyOptional({
+    example: 'dGh3...xyz',
+    description: 'Firebase Cloud Messaging token for push notifications',
+    nullable: true,
+  })
+  @Column({ type: 'text', nullable: true })
+  fcm_token: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

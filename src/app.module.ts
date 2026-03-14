@@ -19,6 +19,7 @@ import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { StripeModule } from './stripe/stripe.module';
 import { AccessControlModule } from './access-control/access-control.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AccessControlModule } from './access-control/access-control.module';
     ReportsModule,
     AddressesModule,
     StripeModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

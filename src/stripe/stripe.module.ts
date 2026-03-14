@@ -5,6 +5,7 @@ import { StripeWebhookController } from './webhooks/stripe-webhook.controller';
 import { PaymentsModule } from '../payments/payments.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { SubscriptionPlansModule } from '../subscription-plans/subscription-plans.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { StripeSubscriptionsController } from './stripe-subscriptions.controller';
 
 @Module({
@@ -13,6 +14,7 @@ import { StripeSubscriptionsController } from './stripe-subscriptions.controller
     PaymentsModule,
     SubscriptionsModule,
     SubscriptionPlansModule,
+    NotificationsModule,
   ],
   controllers: [StripeWebhookController, StripeSubscriptionsController],
   providers: [StripeService],
