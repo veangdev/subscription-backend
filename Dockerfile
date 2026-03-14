@@ -27,11 +27,14 @@ RUN yarn install --production --frozen-lockfile --network-timeout 100000 && \
 # Copy compiled code from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy startup script with auto-migrations
+COPY start-with-migrations.js ./
+
 # Healthcheck with extended start period for Cloud Run
 HEALTHCHECK --interval=10s --timeout=3s --start-period=120s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
 
 EXPOSE 8080
 
-# Bind the HTTP port immediately, then bootstrap Nest in the background.
-CMD ["node", "--max-old-space-size=1792", "dist/server.js"]
+# Run migrations then start server
+CMD ["node", "--max-old-space-size=1792", "start-with-migrations.js"]
