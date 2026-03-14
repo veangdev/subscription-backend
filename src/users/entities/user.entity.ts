@@ -54,7 +54,7 @@ export class User {
     description: 'Firebase Cloud Messaging token for push notifications',
     nullable: true,
   })
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, select: false })
   fcm_token: string | null;
 
   @CreateDateColumn()

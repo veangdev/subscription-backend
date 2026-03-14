@@ -48,6 +48,10 @@ export class NotificationsService implements OnModuleInit {
     try {
       const user = await this.userRepository.findOne({
         where: { id: userId },
+        select: {
+          id: true,
+          fcm_token: true,
+        },
       });
 
       if (!user?.fcm_token) {
