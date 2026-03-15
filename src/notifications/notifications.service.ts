@@ -14,25 +14,27 @@ export class NotificationsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // Initialize Firebase Admin SDK
-    if (!admin.apps.length) {
-      try {
-        // Check if service account file exists
-        const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-        
-        if (serviceAccountPath) {
-          admin.initializeApp({
-            credential: admin.credential.applicationDefault(),
-          });
-          this.logger.log('Firebase Admin SDK initialized successfully');
-        } else {
-          this.logger.warn(
-            'GOOGLE_APPLICATION_CREDENTIALS not set. Firebase notifications will not work.',
-          );
-        }
-      } catch (error) {
-        this.logger.error('Failed to initialize Firebase Admin SDK', error);
-      }
+    if (admin.apps.length) {
+      return;
+    }
+
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+      });
+
+      const credentialSource = process.env.GOOGLE_APPLICATION_CREDENTIALS
+        ? 'GOOGLE_APPLICATION_CREDENTIALS'
+        : 'application default credentials';
+
+      this.logger.log(
+        `Firebase Admin SDK initialized successfully using ${credentialSource}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize Firebase Admin SDK. Push notifications will be unavailable until Firebase credentials are configured.',
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 
