@@ -78,6 +78,33 @@ jobs:
       # Let Docker push to Artifact Registry
       - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
+      # Create or update Firebase service account secret
+      - name: Setup Firebase credentials in Secret Manager
+        run: |
+          echo "Setting up Firebase service account secret..."
+          
+          # Check if secret exists
+          if gcloud secrets describe firebase-service-account --project=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null; then
+            echo "Secret exists, creating new version..."
+            echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" | base64 -d | \
+              gcloud secrets versions add firebase-service-account \
+                --data-file=- \
+                --project=${{ secrets.GCP_PROJECT_ID }}
+          else
+            echo "Creating new secret..."
+            echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" | base64 -d | \
+              gcloud secrets create firebase-service-account \
+                --data-file=- \
+                --replication-policy=automatic \
+                --project=${{ secrets.GCP_PROJECT_ID }}
+          fi
+          
+          echo "Granting secret accessor permission to service account..."
+          gcloud secrets add-iam-policy-binding firebase-service-account \
+            --member="serviceAccount:${{ steps.runtime_sa.outputs.email }}" \
+            --role="roles/secretmanager.secretAccessor" \
+            --project=${{ secrets.GCP_PROJECT_ID }}
+
       # Build & push image tagged with commit SHA
       - name: Build and push
         run: |
@@ -135,9 +162,11 @@ jobs:
             STRIPE_PRICE_GLOW_RITUAL_BOX_WEEKLY=${{ secrets.STRIPE_PRICE_GLOW_RITUAL_BOX_WEEKLY }}
             STRIPE_PRICE_GLOW_RITUAL_BOX_MONTHLY=${{ secrets.STRIPE_PRICE_GLOW_RITUAL_BOX_MONTHLY }}
             STRIPE_PRICE_GLOW_RITUAL_BOX_YEARLY=${{ secrets.STRIPE_PRICE_GLOW_RITUAL_BOX_YEARLY }}
+            GOOGLE_APPLICATION_CREDENTIALS=/secrets/firebase/service-account.json
           secrets: |
             DATABASE_PASSWORD=database-password:latest
             JWT_SECRET=jwt-secret:latest
+            /secrets/firebase/service-account.json=firebase-service-account:latest
             STRIPE_SECRET_KEY=stripe-secret-key1:latest
 
       # Show deployment details
