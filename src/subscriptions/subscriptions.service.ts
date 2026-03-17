@@ -112,7 +112,20 @@ export class SubscriptionsService {
       .andWhere('subscription.status IN (:...statuses)', {
         statuses: ['ACTIVE', 'PAUSED'],
       })
-      .orderBy('shipment.shipment_date', 'DESC')
+      // Prefer most-progressed active shipment first so a PACKED shipment is never
+      // shadowed by a PENDING one with a newer date (e.g. from ensureInitialShipments).
+      // SHIPPED=1, PACKED=2, PENDING=3, DELIVERED=4 → lower number wins.
+      .addSelect(
+        `CASE shipment.status
+          WHEN 'SHIPPED'   THEN 1
+          WHEN 'PACKED'    THEN 2
+          WHEN 'PENDING'   THEN 3
+          WHEN 'DELIVERED' THEN 4
+          ELSE 5 END`,
+        'status_priority',
+      )
+      .orderBy('status_priority', 'ASC')
+      .addOrderBy('shipment.shipment_date', 'DESC')
       .addOrderBy('shipment.id', 'DESC')
       .getOne();
 
