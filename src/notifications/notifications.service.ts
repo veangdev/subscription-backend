@@ -161,6 +161,18 @@ export class NotificationsService implements OnModuleInit {
   }
 
   /**
+   * Send shipment packed notification
+   */
+  async sendShipmentPackedNotification(userId: string): Promise<boolean> {
+    return this.sendNotificationToUser(
+      userId,
+      '📦 Order Being Packed',
+      'Your box is being packed and will be shipped soon!',
+      { type: 'shipment', status: 'PACKED' },
+    );
+  }
+
+  /**
    * Send shipment notification
    */
   async sendShipmentNotification(

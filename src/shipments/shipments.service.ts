@@ -103,6 +103,9 @@ export class ShipmentsService {
       const normalizedStatus = dto.status.toUpperCase();
       const userId = updated.subscription?.user?.id;
       if (userId) {
+        if (normalizedStatus === 'PACKED') {
+          await this.notificationsService.sendShipmentPackedNotification(userId);
+        }
         if (normalizedStatus === 'SHIPPED') {
           await this.notificationsService.sendShipmentNotification(userId, updated.tracking_number);
         }
@@ -137,6 +140,9 @@ export class ShipmentsService {
 
     const userId = updated.subscription?.user?.id;
     if (userId) {
+      if (normalizedStatus === 'PACKED') {
+        await this.notificationsService.sendShipmentPackedNotification(userId);
+      }
       if (normalizedStatus === 'SHIPPED') {
         await this.notificationsService.sendShipmentNotification(
           userId,
