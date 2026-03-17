@@ -203,21 +203,24 @@ export class SubscriptionsService {
     }
   }
 
-  private mapShipmentStatusToStep(status: string): 'PACKED' | 'SHIPPED' | 'DELIVERED' {
+  private mapShipmentStatusToStep(status: string): 'PENDING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' {
     switch (status.toUpperCase()) {
       case 'DELIVERED':
         return 'DELIVERED';
       case 'SHIPPED':
         return 'SHIPPED';
-      default:
+      case 'PACKED':
         return 'PACKED';
+      default:
+        return 'PENDING';
     }
   }
 
   private buildShipmentSteps(
-    currentStep: 'PACKED' | 'SHIPPED' | 'DELIVERED',
+    currentStep: 'PENDING' | 'PACKED' | 'SHIPPED' | 'DELIVERED',
   ): DashboardShipmentStepDto[] {
     const orderedSteps = [
+      { key: 'PENDING', label: 'Order Placed' },
       { key: 'PACKED', label: 'Packed' },
       { key: 'SHIPPED', label: 'Shipped' },
       { key: 'DELIVERED', label: 'Delivered' },
@@ -232,12 +235,14 @@ export class SubscriptionsService {
     }));
   }
 
-  private calculateShipmentProgress(currentStep: 'PACKED' | 'SHIPPED' | 'DELIVERED'): number {
+  private calculateShipmentProgress(currentStep: 'PENDING' | 'PACKED' | 'SHIPPED' | 'DELIVERED'): number {
     switch (currentStep) {
       case 'DELIVERED':
         return 1;
       case 'SHIPPED':
-        return 0.5;
+        return 0.67;
+      case 'PACKED':
+        return 0.33;
       default:
         return 0;
     }

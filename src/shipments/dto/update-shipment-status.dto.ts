@@ -4,6 +4,6 @@ import { IsIn, IsNotEmpty } from 'class-validator';
 export class UpdateShipmentStatusDto {
   @ApiProperty({ example: 'SHIPPED', enum: ['PENDING', 'SHIPPED', 'DELIVERED'] })
   @IsNotEmpty()
-  @IsIn(['PENDING', 'SHIPPED', 'DELIVERED'])
+  @IsIn(['PENDING', 'PACKED', 'SHIPPED', 'DELIVERED'])
   status: string;
 }

@@ -123,7 +123,7 @@ export class ShipmentsService {
       throw new BadRequestException('Status is required');
     }
 
-    const allowed = ['PENDING', 'SHIPPED', 'DELIVERED'];
+    const allowed = ['PENDING', 'PACKED', 'SHIPPED', 'DELIVERED'];
     if (!allowed.includes(normalizedStatus)) {
       throw new BadRequestException(`Invalid shipment status: ${status}`);
     }
