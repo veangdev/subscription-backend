@@ -237,9 +237,9 @@ export class SubscriptionsService {
       case 'DELIVERED':
         return 1;
       case 'SHIPPED':
-        return 0.67;
+        return 0.5;
       default:
-        return 0.33;
+        return 0;
     }
   }
 
