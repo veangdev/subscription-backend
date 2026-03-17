@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Put } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ShipmentsService } from './shipments.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
+import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
 import {
   SubscriberShipmentHistoryDetailDto,
   SubscriberShipmentHistoryItemDto,
@@ -73,6 +74,18 @@ export class ShipmentsController {
   @ApiOkResponse({ description: 'Shipment updated', type: Shipment })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateShipmentDto): Promise<Shipment> {
     return this.shipmentsService.update(id, dto);
+  }
+
+  @Put(':id/status')
+  @UseGuards(AdminAccessGuard)
+  @ApiOperation({ summary: 'Update shipment status' })
+  @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiOkResponse({ description: 'Shipment status updated', type: Shipment })
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateShipmentStatusDto,
+  ): Promise<Shipment> {
+    return this.shipmentsService.updateStatus(id, dto.status);
   }
 
   @Delete(':id')

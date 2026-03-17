@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateShipmentDto {
   @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000', description: 'Subscription ID' })
@@ -20,5 +20,6 @@ export class CreateShipmentDto {
   @ApiProperty({ example: 'TRK-123456789', required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   tracking_number?: string;
 }

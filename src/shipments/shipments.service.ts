@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Address } from '../addresses/entities/address.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   SubscriberShipmentAddressDto,
   SubscriberShipmentHistoryDetailDto,
@@ -18,6 +19,7 @@ export class ShipmentsService {
     private readonly shipmentsRepository: Repository<Shipment>,
     @InjectRepository(Address)
     private readonly addressesRepository: Repository<Address>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   create(dto: CreateShipmentDto): Promise<Shipment> {
@@ -93,9 +95,63 @@ export class ShipmentsService {
   }
 
   async update(id: string, dto: UpdateShipmentDto): Promise<Shipment> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     await this.shipmentsRepository.update(id, dto);
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+
+    if (dto.status && dto.status.toUpperCase() !== existing.status?.toUpperCase()) {
+      const normalizedStatus = dto.status.toUpperCase();
+      const userId = updated.subscription?.user?.id;
+      if (userId) {
+        if (normalizedStatus === 'SHIPPED') {
+          await this.notificationsService.sendShipmentNotification(userId, updated.tracking_number);
+        }
+        if (normalizedStatus === 'DELIVERED') {
+          await this.notificationsService.sendShipmentDeliveredNotification(userId, updated.tracking_number);
+        }
+      }
+    }
+
+    return updated;
+  }
+
+  async updateStatus(id: string, status: string): Promise<Shipment> {
+    const shipment = await this.findOne(id);
+    const normalizedStatus = status?.toUpperCase?.().trim();
+
+    if (!normalizedStatus) {
+      throw new BadRequestException('Status is required');
+    }
+
+    const allowed = ['PENDING', 'SHIPPED', 'DELIVERED'];
+    if (!allowed.includes(normalizedStatus)) {
+      throw new BadRequestException(`Invalid shipment status: ${status}`);
+    }
+
+    if (shipment.status === normalizedStatus) {
+      return shipment;
+    }
+
+    await this.shipmentsRepository.update(id, { status: normalizedStatus });
+    const updated = await this.findOne(id);
+
+    const userId = updated.subscription?.user?.id;
+    if (userId) {
+      if (normalizedStatus === 'SHIPPED') {
+        await this.notificationsService.sendShipmentNotification(
+          userId,
+          updated.tracking_number,
+        );
+      }
+      if (normalizedStatus === 'DELIVERED') {
+        await this.notificationsService.sendShipmentDeliveredNotification(
+          userId,
+          updated.tracking_number,
+        );
+      }
+    }
+
+    return updated;
   }
 
   async remove(id: string): Promise<void> {

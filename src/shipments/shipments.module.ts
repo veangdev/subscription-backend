@@ -5,9 +5,14 @@ import { ShipmentsService } from './shipments.service';
 import { ShipmentsController } from './shipments.controller';
 import { Shipment } from './entities/shipment.entity';
 import { AccessControlModule } from '../access-control/access-control.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AccessControlModule, TypeOrmModule.forFeature([Shipment, Address])],
+  imports: [
+    AccessControlModule,
+    NotificationsModule,
+    TypeOrmModule.forFeature([Shipment, Address]),
+  ],
   controllers: [ShipmentsController],
   providers: [ShipmentsService],
   exports: [ShipmentsService],

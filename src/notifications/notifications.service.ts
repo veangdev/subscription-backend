@@ -181,4 +181,27 @@ export class NotificationsService implements OnModuleInit {
       },
     );
   }
+
+  /**
+   * Send shipment delivered notification
+   */
+  async sendShipmentDeliveredNotification(
+    userId: string,
+    trackingNumber?: string,
+  ): Promise<boolean> {
+    const body = trackingNumber
+      ? `Your order has been delivered! Tracking: ${trackingNumber}`
+      : 'Your order has been delivered!';
+
+    return this.sendNotificationToUser(
+      userId,
+      '✅ Order Delivered',
+      body,
+      {
+        type: 'shipment',
+        status: 'DELIVERED',
+        ...(trackingNumber && { tracking_number: trackingNumber }),
+      },
+    );
+  }
 }
