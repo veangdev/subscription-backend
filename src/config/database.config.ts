@@ -18,6 +18,7 @@ import { Report } from '../reports/entities/report.entity';
 import { AddRbacAndUserStatus1741377600000 } from '../database/migrations/1741377600000-add-rbac-and-user-status';
 import { AddImageColumns1741670400000 } from '../database/migrations/1741670400000-add-image-columns';
 import { AddFcmToken1741900000000 } from '../database/migrations/1741900000000-add-fcm-token';
+import { AddProductsTable1742000000000 } from '../database/migrations/1742000000000-add-products-table';
 import * as path from 'path';
 
 loadLocalEnvFile();
@@ -26,6 +27,7 @@ const migrations = [
   AddRbacAndUserStatus1741377600000,
   AddImageColumns1741670400000,
   AddFcmToken1741900000000,
+  AddProductsTable1742000000000,
 ];
 
 export const databaseConfigFactory = (
