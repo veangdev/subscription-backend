@@ -49,7 +49,7 @@ export const databaseConfigFactory = (
     database: config.getOrThrow('DATABASE_NAME'),
     autoLoadEntities: true,
     migrations,
-    migrationsRun: false,
+    migrationsRun: true,
     synchronize: false, // Never sync schema on startup
     retryAttempts,
     retryDelay,
