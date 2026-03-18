@@ -7,13 +7,24 @@ async function runMigrations() {
     // Simple SQL migration - just add the column if it doesn't exist
     const { Client } = require('pg');
     
-    const client = new Client({
-      host: process.env.DATABASE_HOST,
-      port: process.env.DATABASE_PORT || 5432,
+    const dbHost = process.env.DATABASE_HOST || 'localhost';
+    const isUnixSocket = dbHost.startsWith('/');
+
+    const clientConfig = {
       user: process.env.DATABASE_USER,
       password: process.env.DATABASE_PASSWORD,
       database: process.env.DATABASE_NAME,
-    });
+    };
+
+    if (isUnixSocket) {
+      // Cloud Run / Cloud SQL: connect via Unix domain socket
+      clientConfig.host = dbHost;
+    } else {
+      clientConfig.host = dbHost;
+      clientConfig.port = parseInt(process.env.DATABASE_PORT || '5432', 10);
+    }
+
+    const client = new Client(clientConfig);
     
     await client.connect();
     
@@ -51,7 +62,8 @@ async function runMigrations() {
     await client.end();
     
   } catch (error) {
-    console.warn('⚠️  Migration warning:', error.message);
+    console.error('❌ Migration failed:', error.message);
+    console.error(error.stack);
     console.log('Continuing with server startup...');
   }
 }
