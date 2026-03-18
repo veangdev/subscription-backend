@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment } from './entities/payment.entity';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
+import { QueryPaymentsDto } from './dto/query-payments.dto';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
@@ -21,10 +22,10 @@ export class PaymentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all payments' })
-  @ApiOkResponse({ description: 'List of all payments', type: [Payment] })
-  findAll(): Promise<Payment[]> {
-    return this.paymentsService.findAll();
+  @ApiOperation({ summary: 'Get all payments (paginated)' })
+  @ApiOkResponse({ description: 'Paginated payments returned successfully' })
+  findAll(@Query() query: QueryPaymentsDto) {
+    return this.paymentsService.findAll(query);
   }
 
   @Get(':id')

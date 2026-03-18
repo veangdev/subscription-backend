@@ -26,6 +26,7 @@ import { Product } from './entities/product.entity';
 import { SubscriptionPlanStorefrontResponseDto } from './dto/subscription-plan-storefront-response.dto';
 import { AddProductsToPlanDto, CreateProductDto, RemoveProductsFromPlanDto } from './dto/product.dto';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
+import { QueryPlansDto } from './dto/query-plans.dto';
 
 @ApiTags('Subscription Plans')
 @ApiBearerAuth()
@@ -43,20 +44,10 @@ export class SubscriptionPlansController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
-  @ApiOperation({ summary: 'Get all box subscription variants' })
-  @ApiOkResponse({ description: 'List of all plans', type: [SubscriptionPlan] })
-  findAll(
-    @Query('billingCycle') billingCycle?: 'weekly' | 'monthly' | 'yearly',
-  ): Promise<SubscriptionPlan[]> {
-    if (
-      billingCycle &&
-      billingCycle !== 'weekly' &&
-      billingCycle !== 'monthly' &&
-      billingCycle !== 'yearly'
-    ) {
-      throw new BadRequestException('billingCycle must be weekly, monthly, or yearly');
-    }
-    return this.plansService.findAll(billingCycle);
+  @ApiOperation({ summary: 'Get all box subscription variants (paginated)' })
+  @ApiOkResponse({ description: 'Paginated plans returned successfully' })
+  findAll(@Query() query: QueryPlansDto) {
+    return this.plansService.findAllPaginated(query);
   }
 
   @Get('storefront')

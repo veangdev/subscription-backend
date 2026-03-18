@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import { Product } from './entities/product.entity';
+import { QueryPlansDto } from './dto/query-plans.dto';
 import { CreateSubscriptionPlanDto } from './dto/create-subscription-plan.dto';
 import { UpdateSubscriptionPlanDto } from './dto/update-subscription-plan.dto';
 import {
@@ -161,6 +162,68 @@ export class SubscriptionPlansService {
     }
 
     return query.getMany();
+  }
+
+  async findAllPaginated(query: QueryPlansDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const qb = this.plansRepository
+      .createQueryBuilder('plan')
+      .leftJoinAndSelect('plan.products', 'product')
+      .orderBy(
+        `CASE plan.name
+          WHEN 'The Wellness Box' THEN 1
+          WHEN 'Eco-Home Essentials' THEN 2
+          WHEN 'Gamer''s Loot' THEN 3
+          WHEN 'Snack Stash Express' THEN 4
+          WHEN 'Glow Ritual Box' THEN 5
+          ELSE 99
+        END`,
+      )
+      .addOrderBy('plan.frequency_in_days', 'ASC');
+
+    if (query.search?.trim()) {
+      const s = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        `LOWER(plan.name) LIKE :s OR LOWER(COALESCE(plan.description, '')) LIKE :s`,
+        { s },
+      );
+    }
+
+    if (query.billingCycle === 'weekly') {
+      qb.andWhere('plan.frequency_in_days <= :weeklyDays', { weeklyDays: 7 });
+    } else if (query.billingCycle === 'monthly') {
+      qb.andWhere('plan.frequency_in_days <= :monthlyDays', { monthlyDays: 31 });
+    } else if (query.billingCycle === 'yearly') {
+      qb.andWhere('plan.frequency_in_days >= :yearlyDays', { yearlyDays: 360 });
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+    const [items, total] = await qb.getManyAndCount();
+
+    const allPlans = await this.plansRepository.find({ select: ['id', 'name', 'frequency_in_days'] });
+    const uniqueBoxes = new Set(allPlans.map((p) => p.name)).size;
+    const weeklyCount = allPlans.filter((p) => p.frequency_in_days <= 7).length;
+    const yearlyCount = allPlans.filter((p) => p.frequency_in_days >= 360).length;
+    const monthlyCount = allPlans.length - weeklyCount - yearlyCount;
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+        summary: {
+          total_variants: allPlans.length,
+          total_boxes: uniqueBoxes,
+          weekly_count: weeklyCount,
+          monthly_count: monthlyCount,
+          yearly_count: yearlyCount,
+        },
+      },
+    };
   }
 
   async getStorefrontCatalog(): Promise<SubscriptionPlanStorefrontResponseDto> {

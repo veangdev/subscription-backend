@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { QuerySubscriptionsDto } from './dto/query-subscriptions.dto';
 import { Subscription } from './entities/subscription.entity';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -32,8 +33,51 @@ export class SubscriptionsService {
     return this.subscriptionsRepository.save(subscription);
   }
 
-  findAll(): Promise<Subscription[]> {
-    return this.subscriptionsRepository.find({ relations: ['user', 'plan'] });
+  async findAll(query: QuerySubscriptionsDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const qb = this.subscriptionsRepository
+      .createQueryBuilder('subscription')
+      .leftJoinAndSelect('subscription.user', 'user')
+      .leftJoinAndSelect('subscription.plan', 'plan')
+      .orderBy('subscription.start_date', 'DESC');
+
+    if (query.search?.trim()) {
+      const s = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        `LOWER(COALESCE(user.name, '')) LIKE :s
+         OR LOWER(COALESCE(user.email, '')) LIKE :s
+         OR LOWER(COALESCE(plan.name, '')) LIKE :s
+         OR LOWER(subscription.status) LIKE :s`,
+        { s },
+      );
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+    const [items, total] = await qb.getManyAndCount();
+
+    const [activeCount, pausedCount, cancelledCount] = await Promise.all([
+      this.subscriptionsRepository.count({ where: { status: 'ACTIVE' } }),
+      this.subscriptionsRepository.count({ where: { status: 'PAUSED' } }),
+      this.subscriptionsRepository.count({ where: { status: 'CANCELLED' } }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+        summary: {
+          total_subscriptions: activeCount + pausedCount + cancelledCount,
+          active_count: activeCount,
+          paused_count: pausedCount,
+          cancelled_count: cancelledCount,
+        },
+      },
+    };
   }
 
   async findOne(id: string): Promise<Subscription> {

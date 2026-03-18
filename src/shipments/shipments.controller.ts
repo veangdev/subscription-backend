@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Put, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ShipmentsService } from './shipments.service';
@@ -11,6 +11,7 @@ import {
 } from './dto/subscriber-shipment-history-response.dto';
 import { Shipment } from './entities/shipment.entity';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
+import { QueryShipmentsDto } from './dto/query-shipments.dto';
 
 @ApiTags('Shipments')
 @ApiBearerAuth()
@@ -28,10 +29,10 @@ export class ShipmentsController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
-  @ApiOperation({ summary: 'Get all shipments' })
-  @ApiOkResponse({ description: 'List of all shipments', type: [Shipment] })
-  findAll(): Promise<Shipment[]> {
-    return this.shipmentsService.findAll();
+  @ApiOperation({ summary: 'Get all shipments (paginated)' })
+  @ApiOkResponse({ description: 'Paginated shipments returned successfully' })
+  findAll(@Query() query: QueryShipmentsDto) {
+    return this.shipmentsService.findAll(query);
   }
 
   @Get('history')

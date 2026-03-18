@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiParam } from '@nestjs/swagger';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -8,6 +8,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { SubscriberDashboardResponseDto } from './dto/subscriber-dashboard-response.dto';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
+import { QuerySubscriptionsDto } from './dto/query-subscriptions.dto';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
@@ -25,10 +26,10 @@ export class SubscriptionsController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
-  @ApiOperation({ summary: 'Get all subscriptions' })
-  @ApiOkResponse({ description: 'List of all subscriptions', type: [Subscription] })
-  findAll(): Promise<Subscription[]> {
-    return this.subscriptionsService.findAll();
+  @ApiOperation({ summary: 'Get all subscriptions (paginated)' })
+  @ApiOkResponse({ description: 'Paginated subscriptions returned successfully' })
+  findAll(@Query() query: QuerySubscriptionsDto) {
+    return this.subscriptionsService.findAll(query);
   }
 
   @Get('me')

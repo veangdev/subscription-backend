@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { QueryShipmentsDto } from './dto/query-shipments.dto';
 import { Address } from '../addresses/entities/address.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -27,16 +28,55 @@ export class ShipmentsService {
     return this.shipmentsRepository.save(shipment);
   }
 
-  findAll(): Promise<Shipment[]> {
-    return this.shipmentsRepository.find({
-      relations: {
-        subscription: {
-          user: true,
-          plan: true,
+  async findAll(query: QueryShipmentsDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const qb = this.shipmentsRepository
+      .createQueryBuilder('shipment')
+      .leftJoinAndSelect('shipment.subscription', 'subscription')
+      .leftJoinAndSelect('subscription.user', 'user')
+      .leftJoinAndSelect('subscription.plan', 'plan')
+      .orderBy('shipment.shipment_date', 'DESC');
+
+    if (query.search?.trim()) {
+      const s = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        `LOWER(COALESCE(user.name, '')) LIKE :s
+         OR LOWER(COALESCE(user.email, '')) LIKE :s
+         OR LOWER(COALESCE(plan.name, '')) LIKE :s
+         OR LOWER(COALESCE(shipment.tracking_number, '')) LIKE :s
+         OR LOWER(shipment.status) LIKE :s`,
+        { s },
+      );
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+    const [items, total] = await qb.getManyAndCount();
+
+    const [pendingCount, packedCount, shippedCount, deliveredCount] = await Promise.all([
+      this.shipmentsRepository.count({ where: { status: 'PENDING' } }),
+      this.shipmentsRepository.count({ where: { status: 'PACKED' } }),
+      this.shipmentsRepository.count({ where: { status: 'SHIPPED' } }),
+      this.shipmentsRepository.count({ where: { status: 'DELIVERED' } }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+        summary: {
+          total_shipments: pendingCount + packedCount + shippedCount + deliveredCount,
+          pending_count: pendingCount,
+          packed_count: packedCount,
+          shipped_count: shippedCount,
+          delivered_count: deliveredCount,
         },
       },
-      order: { shipment_date: 'DESC' },
-    });
+    };
   }
 
   async findHistoryByUser(userId: string): Promise<SubscriberShipmentHistoryItemDto[]> {
