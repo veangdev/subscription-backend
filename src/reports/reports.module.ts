@@ -9,6 +9,7 @@ import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
+import { Product } from '../subscription-plans/entities/product.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SubscriptionPlan } from '../subscription-plans/entities/subscription-pl
       Shipment,
       Payment,
       SubscriptionPlan,
+      Product,
     ]),
   ],
   controllers: [ReportsController],

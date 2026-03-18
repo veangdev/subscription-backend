@@ -4,6 +4,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { Subscription } from './entities/subscription.entity';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
+import { Product } from '../subscription-plans/entities/product.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { AccessControlModule } from '../access-control/access-control.module';
@@ -11,7 +12,7 @@ import { AccessControlModule } from '../access-control/access-control.module';
 @Module({
   imports: [
     AccessControlModule,
-    TypeOrmModule.forFeature([Subscription, SubscriptionPlan, Payment, Shipment]),
+    TypeOrmModule.forFeature([Subscription, SubscriptionPlan, Product, Payment, Shipment]),
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],
