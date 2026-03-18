@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
+import { Product } from './product.entity';
 
 @Entity('subscription_plans')
 export class SubscriptionPlan {
@@ -27,4 +28,12 @@ export class SubscriptionPlan {
   // Relations
   @OneToMany(() => Subscription, (subscription) => subscription.plan)
   subscriptions: Subscription[];
+
+  @ManyToMany(() => Product, (product) => product.plans, { eager: false })
+  @JoinTable({
+    name: 'subscription_plan_products',
+    joinColumn: { name: 'plan_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'product_id', referencedColumnName: 'id' },
+  })
+  products: Product[];
 }
