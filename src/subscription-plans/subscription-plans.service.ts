@@ -171,7 +171,7 @@ export class SubscriptionPlansService {
     const qb = this.plansRepository
       .createQueryBuilder('plan')
       .leftJoinAndSelect('plan.products', 'product')
-      .orderBy(
+      .addSelect(
         `CASE plan.name
           WHEN 'The Wellness Box' THEN 1
           WHEN 'Eco-Home Essentials' THEN 2
@@ -180,7 +180,9 @@ export class SubscriptionPlansService {
           WHEN 'Glow Ritual Box' THEN 5
           ELSE 99
         END`,
+        'plan_sort_order',
       )
+      .orderBy('plan_sort_order', 'ASC')
       .addOrderBy('plan.frequency_in_days', 'ASC');
 
     if (query.search?.trim()) {
