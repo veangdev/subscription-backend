@@ -54,7 +54,7 @@ export const databaseConfigFactory = (
     retryAttempts,
     retryDelay,
     verboseRetryLog: false,
-    logging: false,
+    logging: ['error'],
     poolErrorHandler: () => {}, // Ignore pool errors during startup
     extra: {
       connectionTimeoutMillis: connectionTimeout, // Fail immediately if DB not ready
@@ -80,10 +80,12 @@ export const databaseConfigFactory = (
 };
 
 // Standalone DataSource for migrations and seeders
+const _appDataSourceHost = process.env.DATABASE_HOST || 'localhost';
+const _appDataSourceIsUnix = _appDataSourceHost.startsWith('/');
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DATABASE_HOST,
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
+  host: _appDataSourceHost,
+  ...(_appDataSourceIsUnix ? {} : { port: parseInt(process.env.DATABASE_PORT || '5432') }),
   username: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
