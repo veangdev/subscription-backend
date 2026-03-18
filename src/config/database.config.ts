@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { Role } from '../access-control/entities/role.entity';
 import { Permission } from '../access-control/entities/permission.entity';
 import { SubscriptionPlan } from '../subscription-plans/entities/subscription-plan.entity';
+import { Product } from '../subscription-plans/entities/product.entity';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { Address } from '../addresses/entities/address.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
@@ -89,6 +90,7 @@ export const AppDataSource = new DataSource({
     Role,
     Permission,
     SubscriptionPlan,
+    Product,
     Subscription,
     Address,
     Shipment,
