@@ -17,7 +17,7 @@ export class Product {
   description: string | null;
 
   @ApiPropertyOptional({ example: 'Wellness', nullable: true })
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   category: string | null;
 
   @ApiProperty({ example: 4.99 })
@@ -32,7 +32,7 @@ export class Product {
   image_url: string | null;
 
   @ApiPropertyOptional({ example: 'LFC-001', nullable: true })
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   sku: string | null;
 
   @ApiPropertyOptional({ example: 0.25, nullable: true })
@@ -40,7 +40,7 @@ export class Product {
   weight_kg: number | null;
 
   @ApiPropertyOptional({ example: '10x5x3 cm', nullable: true })
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   dimensions: string | null;
 
   // Relations
