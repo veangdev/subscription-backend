@@ -23,6 +23,7 @@ import { CreateStripeCheckoutIntentDto } from './dto/create-stripe-checkout-inte
 import { StripeCheckoutIntentResponseDto } from './dto/stripe-checkout-intent-response.dto';
 import { StripeService } from './stripe.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaymentsService } from '../payments/payments.service';
 
 @ApiTags('Stripe')
 @ApiBearerAuth()
@@ -35,6 +36,7 @@ export class StripeSubscriptionsController {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly plansService: SubscriptionPlansService,
     private readonly notificationsService: NotificationsService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   @Post('checkout-intent')
@@ -152,6 +154,13 @@ export class StripeSubscriptionsController {
       user.id,
       subscribeDto,
     );
+
+    // Record the successful payment so billing_status resolves to PAID.
+    await this.paymentsService.create({
+      subscription_id: subscription.id,
+      amount: Number(plan.price),
+      payment_status: 'SUCCESS',
+    });
 
     // Notifications must not block a successful payment confirmation.
     void this.notificationsService

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateSubscriptionDto {
   @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000', description: 'User ID' })
@@ -24,6 +24,6 @@ export class CreateSubscriptionDto {
 
   @ApiProperty({ example: 'ACTIVE', enum: ['ACTIVE', 'PAUSED', 'CANCELLED'] })
   @IsNotEmpty()
-  @IsString()
+  @IsIn(['ACTIVE', 'PAUSED', 'CANCELLED'])
   status: string;
 }

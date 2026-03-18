@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsUUID } from 'class-validator';
 
 export class CreatePaymentDto {
   @ApiProperty({ type: String, format: 'uuid', example: '550e8400-e29b-41d4-a716-446655440000', description: 'Subscription ID' })
@@ -14,6 +14,6 @@ export class CreatePaymentDto {
 
   @ApiProperty({ example: 'PENDING', enum: ['SUCCESS', 'FAILED', 'PENDING'] })
   @IsNotEmpty()
-  @IsString()
+  @IsIn(['SUCCESS', 'FAILED', 'PENDING'])
   payment_status: string;
 }
