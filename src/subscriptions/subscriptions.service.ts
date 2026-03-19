@@ -156,7 +156,11 @@ export class SubscriptionsService {
     });
   }
 
-  async subscribeForCurrentUser(userId: string, dto: SubscribeDto): Promise<Subscription> {
+  async subscribeForCurrentUser(
+    userId: string,
+    dto: SubscribeDto,
+    stripeSubscriptionId: string | null = null,
+  ): Promise<Subscription> {
     const activeSubscription = await this.findCurrentByUserId(userId);
     if (activeSubscription) {
       throw new ConflictException('User already has an active subscription');
@@ -177,11 +181,55 @@ export class SubscriptionsService {
       start_date: startDate,
       end_date: endDate,
       status: 'ACTIVE',
+      stripe_subscription_id: stripeSubscriptionId,
     });
 
     const savedSubscription = await this.subscriptionsRepository.save(subscription);
     await this.ensureInitialShipments([savedSubscription]);
     return savedSubscription;
+  }
+
+  async pauseCurrentForUser(userId: string): Promise<Subscription> {
+    const subscription = await this.requireCurrentSubscription(userId);
+    const status = subscription.status?.toUpperCase();
+
+    if (status === 'PAUSED') {
+      return subscription;
+    }
+
+    if (status !== 'ACTIVE') {
+      throw new ConflictException('Only active subscriptions can be paused');
+    }
+
+    await this.subscriptionsRepository.update(subscription.id, { status: 'PAUSED' });
+    return this.findOne(subscription.id);
+  }
+
+  async resumeCurrentForUser(userId: string): Promise<Subscription> {
+    const subscription = await this.requireCurrentSubscription(userId);
+    const status = subscription.status?.toUpperCase();
+
+    if (status === 'ACTIVE') {
+      return subscription;
+    }
+
+    if (status !== 'PAUSED') {
+      throw new ConflictException('Only paused subscriptions can be resumed');
+    }
+
+    await this.subscriptionsRepository.update(subscription.id, { status: 'ACTIVE' });
+    const resumedSubscription = await this.findOne(subscription.id);
+    await this.ensureInitialShipments([resumedSubscription]);
+    return this.findOne(subscription.id);
+  }
+
+  async cancelCurrentForUser(userId: string): Promise<Subscription> {
+    const subscription = await this.requireCurrentSubscription(userId);
+    await this.subscriptionsRepository.update(subscription.id, {
+      status: 'CANCELLED',
+      end_date: new Date(),
+    });
+    return this.findOne(subscription.id);
   }
 
   async buildDashboardForUser(userId: string): Promise<SubscriberDashboardResponseDto> {
@@ -439,6 +487,15 @@ export class SubscriptionsService {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + frequencyInDays);
     return endDate;
+  }
+
+  private async requireCurrentSubscription(userId: string): Promise<Subscription> {
+    const subscription = await this.findCurrentByUserId(userId);
+    if (!subscription) {
+      throw new NotFoundException('No current subscription found');
+    }
+
+    return subscription;
   }
 
   private formatDateOnly(value: Date | null | undefined): string | null {

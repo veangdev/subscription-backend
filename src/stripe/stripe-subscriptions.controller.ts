@@ -4,12 +4,15 @@ import {
   Controller,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   Post,
   Body,
+  Put,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -153,6 +156,7 @@ export class StripeSubscriptionsController {
     const subscription = await this.subscriptionsService.subscribeForCurrentUser(
       user.id,
       subscribeDto,
+      dto.stripe_subscription_id,
     );
 
     // Record the successful payment so billing_status resolves to PAID.
@@ -174,5 +178,62 @@ export class StripeSubscriptionsController {
       });
 
     return subscription;
+  }
+
+  @Put('me/pause')
+  @ApiOperation({ summary: 'Pause the current subscriber subscription' })
+  @ApiOkResponse({ description: 'Subscription paused successfully', type: Subscription })
+  async pauseCurrentSubscription(
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<Subscription> {
+    const subscription = await this.subscriptionsService.findCurrentByUserId(user.id);
+    if (!subscription) {
+      throw new NotFoundException('No current subscription found');
+    }
+
+    if (subscription.stripe_subscription_id) {
+      await this.stripeService.pauseSubscription(subscription.stripe_subscription_id);
+    }
+
+    return this.subscriptionsService.pauseCurrentForUser(user.id);
+  }
+
+  @Put('me/resume')
+  @ApiOperation({ summary: 'Resume the current subscriber subscription' })
+  @ApiOkResponse({ description: 'Subscription resumed successfully', type: Subscription })
+  async resumeCurrentSubscription(
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<Subscription> {
+    const subscription = await this.subscriptionsService.findCurrentByUserId(user.id);
+    if (!subscription) {
+      throw new NotFoundException('No current subscription found');
+    }
+
+    if (subscription.stripe_subscription_id) {
+      await this.stripeService.resumeSubscription(subscription.stripe_subscription_id);
+    }
+
+    return this.subscriptionsService.resumeCurrentForUser(user.id);
+  }
+
+  @Put('me/cancel')
+  @ApiOperation({ summary: 'Cancel the current subscriber subscription immediately' })
+  @ApiOkResponse({ description: 'Subscription cancelled successfully', type: Subscription })
+  async cancelCurrentSubscription(
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<Subscription> {
+    const subscription = await this.subscriptionsService.findCurrentByUserId(user.id);
+    if (!subscription) {
+      throw new NotFoundException('No current subscription found');
+    }
+
+    if (subscription.stripe_subscription_id) {
+      await this.stripeService.cancelSubscription(
+        subscription.stripe_subscription_id,
+        true,
+      );
+    }
+
+    return this.subscriptionsService.cancelCurrentForUser(user.id);
   }
 }

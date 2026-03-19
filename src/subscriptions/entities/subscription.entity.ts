@@ -35,6 +35,9 @@ export class Subscription {
   @Column({ length: 20 })
   status: string; // ACTIVE, PAUSED, CANCELLED
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripe_subscription_id: string | null;
+
   // Relations
   @ManyToOne(() => User, (user) => user.subscriptions)
   @JoinColumn({ name: 'user_id' })
