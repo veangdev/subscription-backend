@@ -12,6 +12,7 @@ import {
 import { Shipment } from './entities/shipment.entity';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
 import { QueryShipmentsDto } from './dto/query-shipments.dto';
+import { RequirePermissions } from '../access-control/decorators/permissions.decorator';
 
 @ApiTags('Shipments')
 @ApiBearerAuth()
@@ -21,6 +22,7 @@ export class ShipmentsController {
 
   @Post()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.create')
   @ApiOperation({ summary: 'Create a new shipment' })
   @ApiCreatedResponse({ description: 'Shipment created successfully', type: Shipment })
   create(@Body() dto: CreateShipmentDto): Promise<Shipment> {
@@ -29,6 +31,7 @@ export class ShipmentsController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.view')
   @ApiOperation({ summary: 'Get all shipments (paginated)' })
   @ApiOkResponse({ description: 'Paginated shipments returned successfully' })
   findAll(@Query() query: QueryShipmentsDto) {
@@ -61,6 +64,7 @@ export class ShipmentsController {
 
   @Get(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.view')
   @ApiOperation({ summary: 'Get a shipment by ID' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Shipment found', type: Shipment })
@@ -70,6 +74,7 @@ export class ShipmentsController {
 
   @Patch(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.edit')
   @ApiOperation({ summary: 'Update a shipment' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Shipment updated', type: Shipment })
@@ -79,6 +84,7 @@ export class ShipmentsController {
 
   @Put(':id/status')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.edit')
   @ApiOperation({ summary: 'Update shipment status' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Shipment status updated', type: Shipment })
@@ -91,6 +97,7 @@ export class ShipmentsController {
 
   @Delete(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('shipments.delete')
   @ApiOperation({ summary: 'Delete a shipment' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

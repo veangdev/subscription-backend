@@ -27,6 +27,7 @@ import { SubscriptionPlanStorefrontResponseDto } from './dto/subscription-plan-s
 import { AddProductsToPlanDto, CreateProductDto, RemoveProductsFromPlanDto } from './dto/product.dto';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
 import { QueryPlansDto } from './dto/query-plans.dto';
+import { RequirePermissions } from '../access-control/decorators/permissions.decorator';
 
 @ApiTags('Subscription Plans')
 @ApiBearerAuth()
@@ -36,6 +37,7 @@ export class SubscriptionPlansController {
 
   @Post()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.create')
   @ApiOperation({ summary: 'Create a new box subscription variant' })
   @ApiCreatedResponse({ description: 'Plan created successfully', type: SubscriptionPlan })
   create(@Body() dto: CreateSubscriptionPlanDto): Promise<SubscriptionPlan> {
@@ -44,6 +46,7 @@ export class SubscriptionPlansController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.view')
   @ApiOperation({ summary: 'Get all box subscription variants (paginated)' })
   @ApiOkResponse({ description: 'Paginated plans returned successfully' })
   findAll(@Query() query: QueryPlansDto) {
@@ -62,6 +65,7 @@ export class SubscriptionPlansController {
 
   @Get(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.view')
   @ApiOperation({ summary: 'Get a subscription plan by ID' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Plan found', type: SubscriptionPlan })
@@ -71,6 +75,7 @@ export class SubscriptionPlansController {
 
   @Patch(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.edit')
   @ApiOperation({ summary: 'Update a subscription plan' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Plan updated', type: SubscriptionPlan })
@@ -80,6 +85,7 @@ export class SubscriptionPlansController {
 
   @Post(':id/image')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.edit')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -102,6 +108,7 @@ export class SubscriptionPlansController {
 
   @Delete(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.delete')
   @ApiOperation({ summary: 'Delete a subscription plan' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
@@ -110,6 +117,7 @@ export class SubscriptionPlansController {
 
   @Post('seed-defaults')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.create')
   @ApiOperation({ summary: 'Seed default box plans and billing cadences' })
   @ApiOkResponse({ description: 'Seeded subscription plans', type: [SubscriptionPlan] })
   seedDefaults(): Promise<SubscriptionPlan[]> {
@@ -118,6 +126,7 @@ export class SubscriptionPlansController {
 
   @Post('seed-products')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.create')
   @ApiOperation({ summary: 'Seed default products and assign them to plans' })
   @ApiOkResponse({ description: 'Seeded products', type: [Product] })
   seedProducts(): Promise<Product[]> {
@@ -128,6 +137,7 @@ export class SubscriptionPlansController {
 
   @Get('products')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.view')
   @ApiOperation({ summary: 'List all products' })
   @ApiOkResponse({ description: 'All products', type: [Product] })
   findAllProducts(): Promise<Product[]> {
@@ -136,6 +146,7 @@ export class SubscriptionPlansController {
 
   @Post('products')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.edit')
   @ApiOperation({ summary: 'Create a new product' })
   @ApiCreatedResponse({ description: 'Product created', type: Product })
   createProduct(@Body() dto: CreateProductDto): Promise<Product> {
@@ -144,6 +155,7 @@ export class SubscriptionPlansController {
 
   @Delete('products/:productId')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.delete')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a product' })
   @ApiParam({ name: 'productId', example: '550e8400-e29b-41d4-a716-446655440000' })
@@ -154,6 +166,7 @@ export class SubscriptionPlansController {
 
   @Post(':id/products')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.edit')
   @ApiOperation({ summary: 'Add products to a subscription plan' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Plan with updated products', type: SubscriptionPlan })
@@ -166,6 +179,7 @@ export class SubscriptionPlansController {
 
   @Delete(':id/products')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('plans.edit')
   @ApiOperation({ summary: 'Remove products from a subscription plan' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Plan with updated products', type: SubscriptionPlan })

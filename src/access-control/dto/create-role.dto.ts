@@ -28,7 +28,7 @@ export class CreateRoleDto {
   is_admin?: boolean;
 
   @ApiProperty({
-    example: ['users.view', 'users.edit', 'orders.view'],
+    example: ['dashboard.view', 'subscriptions.view', 'shipments.edit'],
     required: false,
     type: [String],
   })

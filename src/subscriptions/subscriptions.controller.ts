@@ -9,6 +9,7 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { SubscriberDashboardResponseDto } from './dto/subscriber-dashboard-response.dto';
 import { AdminAccessGuard } from '../access-control/guards/admin-access.guard';
 import { QuerySubscriptionsDto } from './dto/query-subscriptions.dto';
+import { RequirePermissions } from '../access-control/decorators/permissions.decorator';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
@@ -18,6 +19,7 @@ export class SubscriptionsController {
 
   @Post()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('subscriptions.create')
   @ApiOperation({ summary: 'Create a new subscription' })
   @ApiCreatedResponse({ description: 'Subscription created successfully', type: Subscription })
   create(@Body() dto: CreateSubscriptionDto): Promise<Subscription> {
@@ -26,6 +28,7 @@ export class SubscriptionsController {
 
   @Get()
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('subscriptions.view')
   @ApiOperation({ summary: 'Get all subscriptions (paginated)' })
   @ApiOkResponse({ description: 'Paginated subscriptions returned successfully' })
   findAll(@Query() query: QuerySubscriptionsDto) {
@@ -63,6 +66,7 @@ export class SubscriptionsController {
 
   @Get(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('subscriptions.view')
   @ApiOperation({ summary: 'Get a subscription by ID' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Subscription found', type: Subscription })
@@ -72,6 +76,7 @@ export class SubscriptionsController {
 
   @Patch(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('subscriptions.edit')
   @ApiOperation({ summary: 'Update a subscription' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   @ApiOkResponse({ description: 'Subscription updated', type: Subscription })
@@ -81,6 +86,7 @@ export class SubscriptionsController {
 
   @Delete(':id')
   @UseGuards(AdminAccessGuard)
+  @RequirePermissions('subscriptions.delete')
   @ApiOperation({ summary: 'Delete a subscription' })
   @ApiParam({ name: 'id', example: '550e8400-e29b-41d4-a716-446655440000' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {

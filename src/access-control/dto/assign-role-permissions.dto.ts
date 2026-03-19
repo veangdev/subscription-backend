@@ -4,7 +4,7 @@ import { ArrayUnique, IsArray, IsString } from 'class-validator';
 export class AssignRolePermissionsDto {
   @ApiProperty({
     type: [String],
-    example: ['users.view', 'users.create', 'security.permissions.assign'],
+    example: ['plans.view', 'subscriptions.view', 'security.permissions.assign'],
   })
   @IsArray()
   @ArrayUnique()

@@ -275,6 +275,9 @@ export class AccessControlService {
     await this.ensureDefaults();
 
     const permissions = await this.permissionsRepository.find({
+      where: {
+        key: In(ALL_PERMISSION_KEYS),
+      },
       order: {
         group_name: 'ASC',
         sort_order: 'ASC',
@@ -313,10 +316,14 @@ export class AccessControlService {
       throw new NotFoundException(`Role #${id} not found`);
     }
 
+    const assignedPermissions = role.permissions.filter((permission) =>
+      ALL_PERMISSION_KEYS.includes(permission.key),
+    );
+
     return {
       role: this.serializeRole(role),
-      assigned_permission_keys: role.permissions.map((permission) => permission.key),
-      permissions: role.permissions.map((permission) => this.serializePermission(permission)),
+      assigned_permission_keys: assignedPermissions.map((permission) => permission.key),
+      permissions: assignedPermissions.map((permission) => this.serializePermission(permission)),
     };
   }
 
@@ -437,7 +444,16 @@ export class AccessControlService {
       existing.is_admin = definition.is_admin;
       existing.is_system = definition.is_system;
 
-      if ((existing.permissions?.length ?? 0) === 0 && nextPermissions.length > 0) {
+      const existingPermissionKeys = existing.permissions?.map((permission) => permission.key) ?? [];
+      const hasUnknownPermissions = existingPermissionKeys.some(
+        (permissionKey) => !ALL_PERMISSION_KEYS.includes(permissionKey),
+      );
+
+      if (
+        definition.name === 'Admin' ||
+        (existing.permissions?.length ?? 0) === 0 ||
+        hasUnknownPermissions
+      ) {
         existing.permissions = nextPermissions;
       }
 
@@ -498,6 +514,11 @@ export class AccessControlService {
   }
 
   private serializeRole(role: Role, userCount = 0) {
+    const activePermissionKeys =
+      role.permissions
+        ?.map((permission) => permission.key)
+        .filter((permissionKey) => ALL_PERMISSION_KEYS.includes(permissionKey)) ?? [];
+
     return {
       id: role.id,
       name: role.name,
@@ -505,8 +526,8 @@ export class AccessControlService {
       is_admin: role.is_admin,
       is_system: role.is_system,
       user_count: userCount,
-      permission_count: role.permissions?.length ?? 0,
-      permission_keys: role.permissions?.map((permission) => permission.key) ?? [],
+      permission_count: activePermissionKeys.length,
+      permission_keys: activePermissionKeys,
       created_at: role.created_at,
       updated_at: role.updated_at,
     };
