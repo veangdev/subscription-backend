@@ -39,4 +39,9 @@ export class QueryUsersDto {
   @IsOptional()
   @IsIn(['Active', 'Inactive'])
   status?: string;
+
+  @ApiPropertyOptional({ example: 'workspace', enum: ['all', 'workspace', 'subscriber'] })
+  @IsOptional()
+  @IsIn(['all', 'workspace', 'subscriber'])
+  audience?: 'all' | 'workspace' | 'subscriber';
 }

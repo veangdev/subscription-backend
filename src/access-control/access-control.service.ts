@@ -77,6 +77,12 @@ export class AccessControlService {
       );
     }
 
+    if (query.admin_access !== undefined) {
+      filteredRolesQuery.andWhere('role.is_admin = :adminAccess', {
+        adminAccess: query.admin_access,
+      });
+    }
+
     const total = await filteredRolesQuery.getCount();
 
     const pageRoles = await filteredRolesQuery

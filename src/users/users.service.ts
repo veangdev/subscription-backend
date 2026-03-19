@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -51,29 +51,8 @@ export class UsersService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
 
-    const qb = this.usersRepository.createQueryBuilder('user');
-
-    if (query.search?.trim()) {
-      const search = `%${query.search.trim().toLowerCase()}%`;
-      qb.andWhere(
-        `
-          LOWER(user.name) LIKE :search
-          OR LOWER(user.email) LIKE :search
-          OR LOWER(COALESCE(user.username, '')) LIKE :search
-          OR LOWER(user.role) LIKE :search
-          OR LOWER(user.status) LIKE :search
-        `,
-        { search },
-      );
-    }
-
-    if (query.role?.trim()) {
-      qb.andWhere('user.role = :role', { role: query.role.trim() });
-    }
-
-    if (query.status?.trim()) {
-      qb.andWhere('user.status = :status', { status: query.status.trim() });
-    }
+    const qb = this.createUsersQueryBuilder();
+    this.applyUserFilters(qb, query);
 
     qb.orderBy('user.created_at', 'DESC')
       .skip((page - 1) * limit)
@@ -81,13 +60,34 @@ export class UsersService {
 
     const [users, total] = await qb.getManyAndCount();
 
+    const summaryQuery = this.createUsersQueryBuilder();
+    this.applyUserFilters(summaryQuery, query, {
+      includeSearch: false,
+      includeStatus: false,
+    });
+
+    const rolesQuery = this.rolesRepository.createQueryBuilder('role');
+    if (query.audience === 'workspace') {
+      rolesQuery.andWhere('role.is_admin = :isAdmin', { isAdmin: true });
+    } else if (query.audience === 'subscriber') {
+      rolesQuery.andWhere('role.name = :subscriberRole', { subscriberRole: 'Subscriber' });
+    }
+
+    if (query.role?.trim()) {
+      rolesQuery.andWhere('role.name = :roleName', { roleName: query.role.trim() });
+    }
+
     const [overallTotal, activeCount, inactiveCount, roles] = await Promise.all([
-      this.usersRepository.count(),
-      this.usersRepository.count({ where: { status: 'Active' } }),
-      this.usersRepository.count({ where: { status: 'Inactive' } }),
-      this.rolesRepository.find({
-        order: { name: 'ASC' },
-      }),
+      summaryQuery.getCount(),
+      summaryQuery
+        .clone()
+        .andWhere('user.status = :activeStatus', { activeStatus: 'Active' })
+        .getCount(),
+      summaryQuery
+        .clone()
+        .andWhere('user.status = :inactiveStatus', { inactiveStatus: 'Inactive' })
+        .getCount(),
+      rolesQuery.orderBy('role.name', 'ASC').getMany(),
     ]);
 
     return {
@@ -200,6 +200,60 @@ export class UsersService {
           .join(','),
       )
       .join('\n');
+  }
+
+  private createUsersQueryBuilder() {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.role_details', 'roleDetails');
+  }
+
+  private applyUserFilters(
+    qb: SelectQueryBuilder<User>,
+    query: QueryUsersDto,
+    options: {
+      includeSearch?: boolean;
+      includeStatus?: boolean;
+    } = {},
+  ) {
+    const {
+      includeSearch = true,
+      includeStatus = true,
+    } = options;
+
+    if (query.audience === 'workspace') {
+      qb.andWhere('(roleDetails.is_admin = :workspaceRole OR user.role = :legacyAdminRole)', {
+        workspaceRole: true,
+        legacyAdminRole: 'Admin',
+      });
+    } else if (query.audience === 'subscriber') {
+      qb.andWhere('user.role = :subscriberRole', {
+        subscriberRole: 'Subscriber',
+      });
+    }
+
+    if (query.role?.trim()) {
+      qb.andWhere('user.role = :role', { role: query.role.trim() });
+    }
+
+    if (includeSearch && query.search?.trim()) {
+      const search = `%${query.search.trim().toLowerCase()}%`;
+      qb.andWhere(
+        `
+          LOWER(user.name) LIKE :search
+          OR LOWER(user.email) LIKE :search
+          OR LOWER(COALESCE(user.phone_number, '')) LIKE :search
+          OR LOWER(COALESCE(user.username, '')) LIKE :search
+          OR LOWER(user.role) LIKE :search
+          OR LOWER(user.status) LIKE :search
+        `,
+        { search },
+      );
+    }
+
+    if (includeStatus && query.status?.trim()) {
+      qb.andWhere('user.status = :status', { status: query.status.trim() });
+    }
   }
 
   async remove(id: string): Promise<void> {
