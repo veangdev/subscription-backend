@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import { AdminAccessGuard } from './guards/admin-access.guard';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignRolePermissionsDto } from './dto/assign-role-permissions.dto';
+import { QueryRolesDto } from './dto/query-roles.dto';
 import { RequirePermissions } from './decorators/permissions.decorator';
 
 @ApiTags('Roles')
@@ -33,10 +35,10 @@ export class RolesController {
 
   @Get()
   @RequirePermissions('security.roles.view')
-  @ApiOperation({ summary: 'List all roles' })
+  @ApiOperation({ summary: 'List roles (paginated)' })
   @ApiOkResponse({ description: 'Roles returned successfully' })
-  findAll() {
-    return this.accessControlService.listRoles();
+  findAll(@Query() query: QueryRolesDto) {
+    return this.accessControlService.listRoles(query);
   }
 
   @Get(':id')

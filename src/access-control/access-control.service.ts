@@ -18,6 +18,7 @@ import { User } from '../users/entities/user.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignRolePermissionsDto } from './dto/assign-role-permissions.dto';
+import { QueryRolesDto } from './dto/query-roles.dto';
 
 interface AccessLookupOptions {
   allowLegacyAdminFallback?: boolean;
@@ -60,26 +61,67 @@ export class AccessControlService {
     await this.defaultsPromise;
   }
 
-  async listRoles() {
+  async listRoles(query: QueryRolesDto = {}) {
     await this.ensureDefaults();
 
-    const [roles, rawCounts] = await Promise.all([
-      this.rolesRepository.find({
-        relations: { permissions: true },
-        order: { is_system: 'DESC', name: 'ASC' },
-      }),
-      this.usersRepository
-        .createQueryBuilder('user')
-        .select('user.role', 'role')
-        .addSelect('COUNT(*)::int', 'count')
-        .groupBy('user.role')
-        .getRawMany<{ role: string; count: string }>(),
-    ]);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const normalizedSearch = query.search?.trim().toLowerCase();
+
+    const filteredRolesQuery = this.rolesRepository.createQueryBuilder('role');
+
+    if (normalizedSearch) {
+      filteredRolesQuery.where(
+        'LOWER(role.name) LIKE :search OR LOWER(COALESCE(role.description, \'\')) LIKE :search',
+        { search: `%${normalizedSearch}%` },
+      );
+    }
+
+    const total = await filteredRolesQuery.getCount();
+
+    const pageRoles = await filteredRolesQuery
+      .clone()
+      .orderBy('role.is_system', 'DESC')
+      .addOrderBy('role.name', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const orderedRoleIds = pageRoles.map((role) => role.id);
+
+    const roles = orderedRoleIds.length === 0
+      ? []
+      : await this.rolesRepository.find({
+          where: { id: In(orderedRoleIds) },
+          relations: { permissions: true },
+        });
+
+    const orderedRoles = orderedRoleIds
+      .map((roleId) => roles.find((role) => role.id === roleId))
+      .filter((role): role is Role => Boolean(role));
+
+    const rawCounts = orderedRoles.length === 0
+      ? []
+      : await this.usersRepository
+          .createQueryBuilder('user')
+          .select('user.role', 'role')
+          .addSelect('COUNT(*)::int', 'count')
+          .where('user.role IN (:...roleNames)', {
+            roleNames: orderedRoles.map((role) => role.name),
+          })
+          .groupBy('user.role')
+          .getRawMany<{ role: string; count: string }>();
 
     const userCountMap = new Map(rawCounts.map((row) => [row.role, Number(row.count)]));
 
     return {
-      items: roles.map((role) => this.serializeRole(role, userCountMap.get(role.name) ?? 0)),
+      items: orderedRoles.map((role) => this.serializeRole(role, userCountMap.get(role.name) ?? 0)),
+      meta: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+      },
     };
   }
 
