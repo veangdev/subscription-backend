@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { QuerySubscriptionsDto } from './dto/query-subscriptions.dto';
 import { Subscription } from './entities/subscription.entity';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -19,6 +19,8 @@ import { Payment } from '../payments/entities/payment.entity';
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly currentSubscriptionStatuses = ['ACTIVE', 'PAUSED'] as const;
+
   constructor(
     @InjectRepository(Subscription)
     private readonly subscriptionsRepository: Repository<Subscription>,
@@ -28,9 +30,35 @@ export class SubscriptionsService {
     private readonly shipmentsRepository: Repository<Shipment>,
   ) {}
 
-  create(dto: CreateSubscriptionDto): Promise<Subscription> {
-    const subscription = this.subscriptionsRepository.create(dto);
-    return this.subscriptionsRepository.save(subscription);
+  async create(dto: CreateSubscriptionDto): Promise<Subscription> {
+    const plan = await this.plansRepository.findOne({ where: { id: dto.plan_id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan #${dto.plan_id} not found`);
+    }
+
+    const normalizedStatus = dto.status.toUpperCase();
+    if (this.isCurrentSubscriptionStatus(normalizedStatus)) {
+      await this.ensureNoOtherCurrentSubscription(dto.user_id);
+    }
+
+    const startDate = new Date(dto.start_date);
+    const endDate = dto.end_date
+      ? new Date(dto.end_date)
+      : this.calculateSubscriptionEndDate(startDate, plan.frequency_in_days);
+
+    const subscription = this.subscriptionsRepository.create({
+      ...dto,
+      start_date: startDate,
+      end_date: endDate,
+      status: normalizedStatus,
+    });
+
+    const savedSubscription = await this.subscriptionsRepository.save(subscription);
+    if (normalizedStatus === 'ACTIVE') {
+      await this.ensureInitialShipments([savedSubscription]);
+    }
+
+    return this.findOne(savedSubscription.id);
   }
 
   async findAll(query: QuerySubscriptionsDto) {
@@ -90,9 +118,26 @@ export class SubscriptionsService {
   }
 
   async update(id: string, dto: UpdateSubscriptionDto): Promise<Subscription> {
-    await this.findOne(id);
-    await this.subscriptionsRepository.update(id, dto);
-    return this.findOne(id);
+    const existingSubscription = await this.findOne(id);
+    const targetUserId = dto.user_id ?? existingSubscription.user_id;
+    const targetStatus = (dto.status ?? existingSubscription.status).toUpperCase();
+
+    if (this.isCurrentSubscriptionStatus(targetStatus)) {
+      await this.ensureNoOtherCurrentSubscription(targetUserId, id);
+    }
+
+    await this.subscriptionsRepository.update(id, {
+      ...dto,
+      status: dto.status?.toUpperCase(),
+    });
+
+    const updatedSubscription = await this.findOne(id);
+    if (updatedSubscription.status?.toUpperCase() === 'ACTIVE') {
+      await this.ensureInitialShipments([updatedSubscription]);
+      return this.findOne(id);
+    }
+
+    return updatedSubscription;
   }
 
   async remove(id: string): Promise<void> {
@@ -102,7 +147,10 @@ export class SubscriptionsService {
 
   async findCurrentByUserId(userId: string): Promise<Subscription | null> {
     return this.subscriptionsRepository.findOne({
-      where: { user_id: userId, status: 'ACTIVE' },
+      where: {
+        user_id: userId,
+        status: In([...this.currentSubscriptionStatuses]),
+      },
       relations: ['user', 'plan'],
       order: { start_date: 'DESC' },
     });
@@ -140,7 +188,7 @@ export class SubscriptionsService {
     const activeSubscriptions = await this.subscriptionsRepository.find({
       where: {
         user_id: userId,
-        status: In(['ACTIVE', 'PAUSED']),
+        status: In([...this.currentSubscriptionStatuses]),
       },
       relations: ['plan', 'payments'],
       order: { end_date: 'ASC' },
@@ -154,7 +202,7 @@ export class SubscriptionsService {
       .leftJoinAndSelect('subscription.plan', 'plan')
       .where('subscription.user_id = :userId', { userId })
       .andWhere('subscription.status IN (:...statuses)', {
-        statuses: ['ACTIVE', 'PAUSED'],
+        statuses: [...this.currentSubscriptionStatuses],
       })
       // Prefer most-progressed active shipment first so a PACKED shipment is never
       // shadowed by a PENDING one with a newer date (e.g. from ensureInitialShipments).
@@ -358,6 +406,39 @@ export class SubscriptionsService {
     }
 
     await this.shipmentsRepository.save(initialShipments);
+  }
+
+  private isCurrentSubscriptionStatus(status: string): boolean {
+    return this.currentSubscriptionStatuses.includes(
+      status as (typeof this.currentSubscriptionStatuses)[number],
+    );
+  }
+
+  private async ensureNoOtherCurrentSubscription(
+    userId: string,
+    excludeSubscriptionId?: string,
+  ): Promise<void> {
+    const where = excludeSubscriptionId
+      ? {
+          user_id: userId,
+          status: In([...this.currentSubscriptionStatuses]),
+          id: Not(excludeSubscriptionId),
+        }
+      : {
+          user_id: userId,
+          status: In([...this.currentSubscriptionStatuses]),
+        };
+
+    const currentSubscriptionCount = await this.subscriptionsRepository.count({ where });
+    if (currentSubscriptionCount > 0) {
+      throw new ConflictException('User already has a current subscription');
+    }
+  }
+
+  private calculateSubscriptionEndDate(startDate: Date, frequencyInDays: number): Date {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + frequencyInDays);
+    return endDate;
   }
 
   private formatDateOnly(value: Date | null | undefined): string | null {
